@@ -1,12 +1,12 @@
 <misterromdescription>
     <name>Hydra (prototype 5/25/90)</name>
-    <mratimestamp>20260925</mratimestamp>
+    <mratimestamp>20260926</mratimestamp>
     <mameversion>0264</mameversion>
     <setname>hydrap2</setname>
     <year>1990</year>
     <manufacturer>Atari Games</manufacturer>
     <category>Racing</category>
-    <rbf>AtariG1</rbf>
+    <rbf>Atari-G1</rbf>
     <rotation>horizontal</rotation>
     <players>1</players>
     <num_buttons>6</num_buttons>

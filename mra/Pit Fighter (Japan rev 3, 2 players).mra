@@ -1,12 +1,12 @@
 <misterromdescription>
     <name>Pit Fighter (Japan rev 3, 2 players)</name>
-    <mratimestamp>20260925</mratimestamp>
+    <mratimestamp>20260926</mratimestamp>
     <mameversion>0264</mameversion>
     <setname>pitfightj</setname>
     <year>1990</year>
     <manufacturer>Atari Games</manufacturer>
     <category>Fighter</category>
-    <rbf>AtariG1</rbf>
+    <rbf>Atari-G1</rbf>
     <rotation>horizontal</rotation>
     <players>2</players>
     <num_buttons>3</num_buttons>
