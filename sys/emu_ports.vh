@@ -150,4 +150,16 @@ input         UART_DSR,
 input   [6:0] USER_IN,
 output  [6:0] USER_OUT,
 
-input         OSD_STATUS
+input         OSD_STATUS,
+
+// CRT Adjust (LOCAL CHANGE to sys/, rmonic79 MiSTer-CRT-Adjust): OSD values
+// and the true VBlank, for crt_vsize/crt_adjust_sys in sys_top.v (analog
+// output only). The core sees MISTER_CRT_ADJUST and drives these ports.
+`define MISTER_CRT_ADJUST
+output              CRT_ON,     // on; the core holds it low while its scandoubler is on
+output signed [4:0] CRT_HSIZE,  // 0 native, +1..+15 wider, -16..-1 narrower
+output signed [8:0] CRT_HPOS,   // H-Position in pixels, signed
+output signed [5:0] CRT_VSHIFT, // V-Shift in lines, signed
+output signed [5:0] CRT_VSIZE,  // lines added per frame: +N shorter, -N taller, 0 off
+output              CRT_VSMODE, // V-Size mode: 0 PVM (retimed), 1 Cabinet (native timing)
+output              CRT_VBL     // true vertical blank (not the combined blank)
