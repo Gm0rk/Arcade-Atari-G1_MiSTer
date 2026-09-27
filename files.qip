@@ -1,7 +1,7 @@
 # ===========================================================================
 #  files.qip -- Atari G1 for MiSTer
 #
-#  Sourced by Arcade-AtariG1.qsf, not added as a QIP_FILE, so every path is
+#  Sourced by Arcade-Atari-G1.qsf, not added as a QIP_FILE, so every path is
 #  relative to the project root (do not use $::quartus(qip_path)).
 #
 #  rtl/ is organised by section of the A047896-01 board:
@@ -22,7 +22,7 @@
 # --- Timing constraints -------------------------------------------------
 # Added here, as sys/sys.qip adds sys_top.sdc. Without this line the core
 # still compiles, but unconstrained.
-set_global_assignment -name SDC_FILE Arcade-AtariG1.sdc
+set_global_assignment -name SDC_FILE Arcade-Atari-G1.sdc
 
 # --- Shared parameters -- must be analysed before anything that imports it 
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/g1_pkg.sv
@@ -42,6 +42,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_watchdog.sv
 
 # --- Video: raster timing, tilemaps, scroll, mixer, palette --------------
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/video/g1_alpha.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/video/g1_crt_osd.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/video/g1_mixer.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/video/g1_palette.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/video/g1_playfield.sv
@@ -75,7 +76,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/mem/sdram.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/debug/g1_dbg_text.sv
 
 # --- Core top level ------------------------------------------------------
-set_global_assignment -name SYSTEMVERILOG_FILE Arcade-AtariG1.sv
+set_global_assignment -name SYSTEMVERILOG_FILE Arcade-Atari-G1.sv
 
 # --- Third-party cores --------------------------------------------------
 # fx68k -- 68000, Jorge Cwik. Its microcode (microrom.mem, nanorom.mem) is
