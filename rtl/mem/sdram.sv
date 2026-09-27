@@ -26,7 +26,7 @@
 //  plausible but unstable words. The usable window also depends on the -90
 //  degree SDRAM_CLK phase and on fitter placement, so the capture step
 //  (rd_phase) and edge (rd_half) are runtime inputs; the top level sets them
-//  from a boot-time self-test sweep or the OSD. Margins: Arcade-AtariG1.sdc.
+//  from a boot-time self-test sweep or the OSD. Margins: Arcade-Atari-G1.sdc.
 //
 //  Clock domain: clk (clk_ram). The requester runs on clk_sys = clk_ram / 2
 //  from the same PLL, phase-aligned, so the crossing is synchronous; ready is
