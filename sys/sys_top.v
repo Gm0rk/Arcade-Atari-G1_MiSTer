@@ -1398,6 +1398,115 @@ scanlines #(0) VGA_scanlines
 	.ce_out(vga_ce_sl)
 );
 
+// ---------------------------------------------------------------------------
+//  CRT Adjust (rmonic79, MiSTer-CRT-Adjust, GPL v3) -- LOCAL CHANGE TO sys/.
+//  Analog branch only: the HDMI scaler takes vga_*_sl above this point, so
+//  HDMI is never affected. Chain: vga_*_sl -> crt_vsize -> crt_adjust_sys ->
+//  vga_osd. The core drives the CRT_* ports (see emu_ports.vh) and turns
+//  CRT_ON off while its scandoubler is active. To revert, restore sys_top.v,
+//  emu_ports.vh and sys.qip from MiSTer's sys/ and delete crt_adjust_sys.sv
+//  and crt_vsize.sv; the core then builds without CRT Adjust.
+// ---------------------------------------------------------------------------
+wire              crt_on_emu;
+wire signed [4:0] crt_hsize_emu;
+wire signed [8:0] crt_hpos_emu;
+wire signed [5:0] crt_vshift_emu;
+wire signed [5:0] crt_vsize_emu;
+wire              crt_vsmode_emu;
+wire              crt_vbl_emu;
+
+// V-Size: PVM mode retimes the line count per frame; Cabinet mode keeps the
+// native timing and redistributes each line's light. vsize = 0 or Off is a
+// pure bypass. The ring holds active pixels only (LINE_PX >= 336 for G1).
+wire [23:0] vga_data_vz;
+wire        vga_hs_vz, vga_vs_vz, vga_de_vz, vga_vb_vz, vga_ce_vz;
+crt_vsize #(
+	.RING_LINES(46),   // covers vsize -21..+21
+	.LINE_PX   (384)
+) u_crt_vsize (
+	.clk      (clk_vid),
+	.pxl_cen  (vga_ce_sl),
+	.active   (crt_on_emu),
+	.tube_mode(crt_vsmode_emu),
+	.vsize    (crt_vsize_emu),
+	.r_in     (vga_data_sl[23:16]),
+	.g_in     (vga_data_sl[15:8]),
+	.b_in     (vga_data_sl[7:0]),
+	.hs_in    (vga_hs_sl),
+	.vs_in    (vga_vs_sl),
+	.de_in    (vga_de_sl),
+	.vb_in    (crt_vbl_emu),           // the core's true vertical blank
+	.r_out    (vga_data_vz[23:16]),
+	.g_out    (vga_data_vz[15:8]),
+	.b_out    (vga_data_vz[7:0]),
+	.hs_out   (vga_hs_vz),
+	.vs_out   (vga_vs_vz),
+	.de_out   (vga_de_vz),
+	.vb_out   (vga_vb_vz),
+	.ce_out   (vga_ce_vz)
+);
+
+// H-Size read enable, in eighths of a clk_vid cycle: base 64 = 8 cycles per
+// pixel, which is the core's native ratio (G1: 57.27 MHz / 7.16 MHz). Reset
+// on the rise of the module's hs_ref_out, never on the raw HSync.
+wire crt_hs_ref;
+reg  crt_hs_ref_d;
+always @(posedge clk_vid) crt_hs_ref_d <= crt_hs_ref;
+wire crt_hs_ref_rise = crt_hs_ref & ~crt_hs_ref_d;
+
+wire [7:0] crt_rd_period = 8'd64 + {{3{crt_hsize_emu[4]}}, crt_hsize_emu};  // 48..79
+reg  [7:0] crt_rd_acc;
+wire crt_rd_tick = (crt_rd_acc + 8'd8) >= {1'b0, crt_rd_period};
+always @(posedge clk_vid) begin
+	if      (crt_hs_ref_rise) crt_rd_acc <= 8'd0;
+	else if (crt_rd_tick)     crt_rd_acc <= crt_rd_acc + 8'd8 - {1'b0, crt_rd_period};
+	else                      crt_rd_acc <= crt_rd_acc + 8'd8;
+end
+wire vga_ce_sl2 = crt_on_emu ? crt_rd_tick : vga_ce_vz;
+
+// H-Size, H-Position, V-Shift on G1's 456 x 262 raster. HPOS_MODE 1
+// (content shift, native HSync), as rmNeoGeo. In simulation on this raster,
+// content moves 48 px left cleanly; moving right, the right edge starts to
+// clip after ~14 px, because active video ends 16 px before HSync. Mode 0 (sync shift) blacks the whole picture when moved right
+// more than that, so it is not used. crt_adjust_sys.sv carries two local
+// fixes, marked "G1 local": negative H-Position in mode 1 (hoff_s), and line
+// blanking taken from DE rather than vb_in (rd_has_de).
+wire [23:0] vga_data_hs;
+wire        vga_hs_hs, vga_vs_hs, vga_de_hs, vga_hb_hs, vga_vb_hs;
+crt_adjust_sys #(
+	.VTOTAL   (262),
+	.HTOTAL   (456),
+	.HPOS_MODE(1)
+) u_crt_adjust_sys (
+	.clk       (clk_vid),
+	.pxl_cen   (vga_ce_vz),
+	.pxl2_cen  (vga_ce_sl2),
+	.active    (crt_on_emu),
+	.hsize     (crt_hsize_emu),
+	.hoffset   (crt_hpos_emu),
+	.voffset   (crt_vshift_emu),
+	.r_in      (vga_data_vz[23:16]),
+	.g_in      (vga_data_vz[15:8]),
+	.b_in      (vga_data_vz[7:0]),
+	.hs_in     (vga_hs_vz),
+	.vs_in     (vga_vs_vz),
+	.hb_in     (~vga_de_vz),
+	.vb_in     (vga_vb_vz),
+	.r_out     (vga_data_hs[23:16]),
+	.g_out     (vga_data_hs[15:8]),
+	.b_out     (vga_data_hs[7:0]),
+	.hs_out    (vga_hs_hs),
+	.vs_out    (vga_vs_hs),
+	.hb_out    (vga_hb_hs),
+	.vb_out    (vga_vb_hs),
+	.hs_ref_out(crt_hs_ref)
+);
+// DE from hb_out alone: the stage already blanks every line without picture
+// (crt_adjust_sys.sv, rd_has_de). vb_out is the input VBlank, a line ahead of
+// the emitted content, so ANDing it in (as rmNeoGeo does) would blank the
+// last picture line on G1.
+assign vga_de_hs = ~vga_hb_hs;
+
 wire [23:0] vga_data_osd;
 wire        vga_vs_osd, vga_hs_osd, vga_de_osd;
 osd vga_osd
@@ -1410,10 +1519,10 @@ osd vga_osd
 	.osd_status(osd_status),
 
 	.clk_video(clk_vid),
-	.din(vga_data_sl),
-	.hs_in(vga_hs_sl),
-	.vs_in(vga_vs_sl),
-	.de_in(vga_de_sl),
+	.din(vga_data_hs),     // CRT Adjust output (was vga_*_sl)
+	.hs_in(vga_hs_hs),
+	.vs_in(vga_vs_hs),
+	.de_in(vga_de_hs),
 
 	.dout(vga_data_osd),
 	.hs_out(vga_hs_osd),
@@ -1857,6 +1966,15 @@ emu emu
 
 	.BUTTONS(btn),
 	.OSD_STATUS(osd_status),
+
+	// CRT Adjust (local change, see above)
+	.CRT_ON(crt_on_emu),
+	.CRT_HSIZE(crt_hsize_emu),
+	.CRT_HPOS(crt_hpos_emu),
+	.CRT_VSHIFT(crt_vshift_emu),
+	.CRT_VSIZE(crt_vsize_emu),
+	.CRT_VSMODE(crt_vsmode_emu),
+	.CRT_VBL(crt_vbl_emu),
 
 	.SD_SCK(SD_CLK),
 	.SD_MOSI(SD_MOSI),
