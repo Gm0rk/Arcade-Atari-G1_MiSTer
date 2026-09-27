@@ -118,7 +118,7 @@ manual, and was checked against the game code before changing:
 ## Using the core
 
 ROMs are not distributed with this core. Put the `.mra` files from `mra/` in
-`_Arcade`, the core (`Arcade-AtariG1_<date>.rbf` from `releases/`) in
+`_Arcade`, the core (`Arcade-Atari-G1_<date>.rbf` from `releases/`) in
 `_Arcade/cores`, and the MAME ROM sets where your MRAs look for them. Merged sets of`pitfight.zip` and `hydra.zip`go into `/games/mame/`.
 
 ### Controls
@@ -174,19 +174,36 @@ card.
 |---|---|---|
 | Aspect ratio | Original, Full Screen, [ARC1], [ARC2] | MiSTer's standard aspect options |
 | Scandoubler Fx | None, HQ2x, CRT 25%, CRT 50%, CRT 75% | MiSTer's standard scandoubler filters |
+| CRT Adjust | page | Size and position of the picture on a CRT, below |
 | Service Menu | **Off**, On | The game's own service (test) menu. Takes effect at the next reset. |
-| Debug | page | Bring-up and diagnosis options, below |
-| Controls | page | Analog sensitivity, below |
+| Debug | page | Debug build only: bring-up and diagnosis options, below |
+| Controls | page | Hydra only: analog sensitivity, below |
 | Reset | | Resets the game |
 
-**Controls page**
+**Controls page** (shown only while Hydra is loaded)
 
 | Option | Settings | What it does |
 |---|---|---|
 | Analog sensitivity | **Medium**, High, Low | Hydra's yoke. Medium: the full stick gives the full yoke. High: the full yoke at about two-thirds of the stick. Low: half the yoke's travel, for finer steering. No effect on Pit Fighter. |
 
-**Debug page.** These options are for bring-up and diagnosis, and the
-defaults are correct:
+**CRT Adjust page.** Fits the picture to a 15 kHz CRT, using rmonic79's CRT
+Adjust (see [Credits](#credits-and-references)). It changes the analog video
+output only; HDMI is never affected. It works with Scandoubler Fx set to None,
+and is bypassed while the scandoubler is on. The sync is never moved out of
+lock, so the picture can be adjusted live.
+
+| Option | Settings | What it does |
+|---|---|---|
+| CRT Adjust | **Off**, On | Off passes the picture through untouched. The options below appear when it is On. |
+| CRT H-Size | **0**, +1…+15, −16…−1 | Wider (+) or narrower (−), about 1.6% per step. The picture grows from the left, so re-centre it with H-Position. |
+| CRT H-Position | **0**, +1…+48, −48…−1 | Moves the picture right (+) or left (−), in pixels. Left moves freely. Right has about 14 pixels of room at H-Size 0 (the picture ends just before the sync); beyond that the right edge is cut off. |
+| CRT V-Shift | **0**, +1…+15, −5…−1 | Moves the picture up (+) or down (−), in lines. Down stops at −5, where the sync would reach the picture. |
+| CRT V-Size | **0**, +1…+7, −7…−1 | Taller (+) or shorter (−), 3 lines per step. G1 has little spare vertical blanking, so in PVM mode taller stops at +2 (where the picture also moves up a line to clear the sync) and shorter at −5. Cabinet mode uses the whole range. |
+| CRT V-Size Mode | **PVM**, Cabinet | PVM changes the line rate slightly to make the picture taller or shorter; broadcast monitors (PVM, BVM) follow it. Cabinet keeps the native timing and spreads each line's light over the scanlines, for arcade monitors that lose lock when the line rate changes. |
+
+**Debug page** (debug build only; see [Building](#building)). These options
+are for bring-up and diagnosis, and the defaults are correct. The production
+build always uses the defaults:
 
 | Option | Settings | What it does |
 |---|---|---|
@@ -208,7 +225,33 @@ Defaults are in **bold**.
 
 Use Quartus Prime 17.0.x, the MiSTer standard. Everything the build needs is
 in this repository, including the MiSTer framework (`sys/`) and the
-third-party cores, so open `Arcade-AtariG1.qpf` and compile.
+third-party cores, so open `Arcade-Atari-G1.qpf` and compile.
+
+This builds the production core, `Arcade-Atari-G1.rbf`, which the MRAs in
+`mra/` load.
+
+The same source also builds a debug core, with the Debug page and the debug
+overlay, when `G1_DEBUG` is defined. Its project files are not in the
+repository. To make them, copy the `.qpf` and `.qsf` to
+`Arcade-Atari-G1Debug.qpf` and `.qsf`, set the copy's `PROJECT_REVISION` to
+`Arcade-Atari-G1Debug`, and add
+`set_global_assignment -name VERILOG_MACRO "G1_DEBUG=1"` to its `.qsf`. Load
+it with copies of the MRAs that say `<rbf>Atari-G1Debug</rbf>`. Its OSD
+version line ends in `-debug`. Both cores keep the same saved settings and
+EEPROM for each game. The production MRAs never load the debug core, as long
+as it keeps its name: `Arcade-Atari-G1Debug.rbf`, or
+`Arcade-Atari-G1Debug_<date>.rbf`.
+
+When copying a new core to `_Arcade/cores`, give it the date
+(`Arcade-Atari-G1_<date>.rbf`) and delete the older ones. An MRA loads the
+matching core whose name sorts last, so an undated `Arcade-Atari-G1.rbf` loses
+to any dated copy already there.
+
+`sys/` carries one local change to the MiSTer framework: rmonic79's CRT Adjust
+stage on the analog video output (`crt_adjust_sys.sv`, `crt_vsize.sv`, and
+edits to `sys_top.v`, `emu_ports.vh` and `sys.qip`). Keep it if `sys/` is ever
+updated from MiSTer. Without it the core still builds, just without the CRT
+Adjust page.
 
 The PLL provides three clocks from the 50 MHz reference:
 
@@ -225,8 +268,9 @@ The memory map spans 3,737,088 bytes, so any MiSTer SDRAM module is enough.
 
 ### The debug overlay
 
-OSD → Debug → Diagnostic → Text shows twenty labelled 32-bit hardware
-counters in a small white-on-black panel, in the style of the Atari GT core's.
+In the debug build, OSD → Debug → Diagnostic → Text shows twenty labelled
+32-bit hardware counters in a small white-on-black panel, in the style of the
+Atari GT core's.
 The game keeps running behind it at full brightness. That is deliberate: a
 tinted picture makes colour faults look like overlay artefacts.
 
@@ -251,10 +295,10 @@ green for toggling.
 ## Repository layout
 
 ```
-Arcade-AtariG1.qpf    Quartus project
-Arcade-AtariG1.qsf    Quartus settings
-Arcade-AtariG1.sdc    timing constraints for this core
-Arcade-AtariG1.sv     core top level: OSD, inputs, video output, debug overlay
+Arcade-Atari-G1.qpf   Quartus project
+Arcade-Atari-G1.qsf   Quartus settings
+Arcade-Atari-G1.sdc   timing constraints for this core
+Arcade-Atari-G1.sv    core top level: OSD, inputs, video output, debug overlay
 files.qip             the core's source list
 clean.bat             deletes Quartus build output
 LICENSE, README.md
@@ -280,6 +324,7 @@ rtl/
     g1_scroll.sv        per-line scroll registers
     g1_mixer.sv         layer priority, palette index generation
     g1_palette.sv       1,280 entries, IRGB-1555 to RGB888
+    g1_crt_osd.sv       CRT Adjust: OSD settings for the CRT stage in sys/
     mob/                motion objects: the RLE "growth renderer"
       g1_rle.sv           engine top level and command register
       g1_rle_prescan.sv   object ROM prescan
@@ -311,7 +356,8 @@ rtl/
   t65/                6502 core (T65): T65*.vhd, README
   jt51/               YM2151 core (Jose Tejada): hdl/ (jt51.qip), README.md, LICENSE
   jt6295/             OKI6295 core (Jose Tejada): hdl/ (jt6295.qip), README.md, LICENSE
-sys/                  MiSTer framework, unmodified
+sys/                  MiSTer framework, plus rmonic79's CRT Adjust:
+                      crt_adjust_sys.sv and crt_vsize.sv, wired in sys_top.v
 mra/                  one MRA per ROM set
   Pit Fighter (rev 9).mra
   Pit Fighter (rev 7).mra
@@ -327,7 +373,7 @@ mra/                  one MRA per ROM set
   Hydra (prototype 5-14-90).mra
   Hydra (prototype 5-25-90).mra
 releases/             the prebuilt core and the two main MRAs
-  Arcade-AtariG1_YYYYMMDD.rbf
+  Arcade-Atari-G1_YYYYMMDD.rbf
   Pit Fighter (rev 9).mra
   Hydra.mra
 docs/
@@ -424,8 +470,13 @@ the YM2151 and OKI6295 implementations used on the JSA II board.
 **[MiSTer](https://github.com/MiSTer-devel/Main_MiSTer)**: the framework, and
 `Template_MiSTer` by Alexey Melnikov (**Sorgelig**), whose `sys/` directory
 provides the HPS interface, video scaler and SDRAM pin handling this core builds
-on. `sys/` is unmodified. MiSTer's MRA loader (`mra_loader.cpp`) is the
-reference for the MRA layout checks.
+on. `sys/` is unmodified apart from the CRT Adjust stage below. MiSTer's MRA
+loader (`mra_loader.cpp`) is the reference for the MRA layout checks.
+
+**[CRT Adjust](https://github.com/rmonic79/MiSTer-CRT-Adjust)** by Umberto
+Parisi (**rmonic79**), with help from Andrea Bogazzi: the analog picture
+size and position controls, integrated sys-side as in
+[rmNeoGeo](https://github.com/rmonic79/rmNeoGeo_MiSTer).
 
 The MiSTer community's existing arcade cores were a useful model for project
 structure and MRA conventions. The Atari GT core's debug overlay is the direct
@@ -436,7 +487,7 @@ model for this one's.
 The core RTL is released under the GNU General Public License v2.0 or later,
 consistent with the MiSTer framework it builds on. See `LICENSE`.
 
-`sys/`, fx68k, T65, JT51 and JT6295 retain their original licences and
-authorship.
+`sys/`, fx68k, T65, JT51, JT6295 and CRT Adjust (GPL v3) retain their original
+licences and authorship.
 
 No ROM data is included or distributed.
