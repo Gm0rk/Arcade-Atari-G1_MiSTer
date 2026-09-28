@@ -74,7 +74,7 @@ package g1_pkg;
 
     // Build number, shown as BLD on the diagnostic overlay so a screenshot
     // identifies its sources. Incremented with every release of changed files.
-    localparam [15:0] G1_BUILD = 16'd131;
+    localparam [15:0] G1_BUILD = 16'd133;
 
     //------------------------------------------------------------------------
     // SDRAM region map (byte addresses). One layout for both games; the MRA
