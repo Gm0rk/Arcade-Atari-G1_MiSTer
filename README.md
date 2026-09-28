@@ -102,9 +102,10 @@ and [`docs/HYDRA_MANUAL_NOTES.md`](docs/HYDRA_MANUAL_NOTES.md).
 The OSD has:
 
 * **Aspect ratio** and **Scandoubler Fx**: MiSTer's standard options.
-* **CRT Adjust**: the picture's size and position on a 15 kHz CRT (H-Size,
-  H-Position, V-Shift, V-Size, PVM or Cabinet mode). Analog output only; HDMI
-  is never affected, and it is bypassed while the scandoubler is on.
+* **[CRT Adjust](https://github.com/rmonic79/MiSTer-CRT-Adjust)**: the
+  picture's size and position on a 15 kHz CRT (H-Size, H-Position, V-Shift,
+  V-Size, PVM or Cabinet mode). Analog output only; HDMI is never affected,
+  and it is bypassed while the scandoubler is on.
 * **Service Menu**: the game's own test menu, from the next reset.
 * **Controls** (Hydra only): analog sensitivity for the yoke.
 
@@ -155,8 +156,7 @@ loader (`mra_loader.cpp`) is the reference for the MRA layout checks.
 
 **[CRT Adjust](https://github.com/rmonic79/MiSTer-CRT-Adjust)** by Umberto
 Parisi (**rmonic79**), with help from Andrea Bogazzi: the analog picture
-size and position controls, integrated sys-side as in
-[rmNeoGeo](https://github.com/rmonic79/rmNeoGeo_MiSTer).
+size and position controls, integrated sys-side.
 
 The MiSTer community's existing arcade cores were a useful model for project
 structure and MRA conventions. The Atari GT core's debug overlay is the direct
