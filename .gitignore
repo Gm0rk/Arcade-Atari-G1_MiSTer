@@ -80,7 +80,5 @@ timing_report.txt
 # The debug build (OSD Debug page) stays in the local working copy: its Quartus
 # project (a copy of the production one plus G1_DEBUG), its MRAs and any debug
 # core. Only the production build is published.
-/Arcade-Atari-G1Debug.qpf
-/Arcade-Atari-G1Debug.qsf
 /mra/debug/
 /releases/*Debug*
