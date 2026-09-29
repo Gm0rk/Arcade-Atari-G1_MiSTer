@@ -18,7 +18,7 @@ for the [MiSTer](https://github.com/MiSTer-devel) platform.
 | Game | Year | Players | ROM sets | Status |
 |---|---|---|---|---|
 | Pit Fighter | 1990 | 3 (2 in some sets) | rev 9; rev 7, 6, 5, 4, 3, 2; rev 1 and Japan rev 3 (2 players); bootleg | **Runs on hardware** (rev 9): attract mode, all three layers, sound, coins and controls. The other sets are not yet tested on hardware. |
-| Hydra | 1990 | 1 | Hydra; prototypes 5-25-90 and 5-14-90 | **Runs on hardware** (Hydra): attract mode, title, gameplay demo and sound. The yoke and pedal are checked in simulation, not yet on hardware. The prototypes are not yet tested on hardware. |
+| Hydra | 1990 | 1 | Hydra; prototypes 5-25-90 and 5-14-90 | **Plays on hardware** (Hydra): attract mode, gameplay and sound, which matches MAME. The analog yoke and pedal work on an Xbox 360 controller, and the service-menu tests pass. The prototypes are not yet tested on hardware. |
 
 All 13 sets are named as in MAME 0.264 and load from merged, split or
 non-merged ROM sets.
@@ -31,10 +31,10 @@ ROM loading (.mra)     ███████████████████
 CPU  (68000 + Slapstic)████████████████████  100%
 Memory subsystem       ████████████████████  100%
 Video                  ██████████████████░░   90%
-Sound (JSA II)         ██████████████████░░   90%
-I/O and controls       ████████████████░░░░   80%
+Sound (JSA II)         ███████████████████░   95%
+I/O and controls       ███████████████████░   95%
                        ────────────────────
-Project                ██████████████████░░   88%
+Project                ███████████████████░   94%
 ```
 
 ## The hardware
