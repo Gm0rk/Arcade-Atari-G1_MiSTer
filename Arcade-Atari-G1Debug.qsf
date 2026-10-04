@@ -11,6 +11,9 @@
 #  compiling this project can never change the production settings. When a
 #  setting changes, change it in both (sim/qsf_pair_check.py compares them).
 #
+#  The post-flow script release_rbf.tcl skips this revision: a debug core is
+#  never moved to releases/.
+#
 # --------------------------------------------------------------------------
 
 set_global_assignment -name TOP_LEVEL_ENTITY sys_top
@@ -22,6 +25,7 @@ set_global_assignment -name LAST_QUARTUS_VERSION "17.0.2 Lite Edition"
 
 set_global_assignment -name GENERATE_RBF_FILE ON
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name POST_FLOW_SCRIPT_FILE "quartus_sh:release_rbf.tcl"
 set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
 set_global_assignment -name SAVE_DISK_SPACE OFF
 set_global_assignment -name SMART_RECOMPILE ON
