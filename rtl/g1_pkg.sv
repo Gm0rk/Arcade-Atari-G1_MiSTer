@@ -20,12 +20,18 @@ package g1_pkg;
     // clock, 15.700 kHz line, 59.923 Hz frame. MAME's totals come from published
     // specs; the porch/sync split of the blanking is chosen for a standard
     // 15 kHz CRT.
+    //
+    // H_FRONT sets where the picture sits on a CRT: everything else (sync,
+    // back porch, VSync alignment, the analog CRT stage) follows from it.
+    // 32 centres the picture for standard 15 kHz timing: its centre falls
+    // 35.8 us after the HSync edge, as a broadcast-timed source's does. 16
+    // puts it 16 dots (2.2 us, about 4% of the width) right of that.
     //------------------------------------------------------------------------
     localparam int H_TOTAL    = 456;
     localparam int H_VISIBLE  = 336;
-    localparam int H_FRONT    = 16;   // dots between end of active and HSYNC
+    localparam int H_FRONT    = 32;   // dots between end of active and HSYNC
     localparam int H_SYNC     = 36;   // ~5.0 us at 7.159 MHz
-    localparam int H_BACK     = H_TOTAL - H_VISIBLE - H_FRONT - H_SYNC; // 68
+    localparam int H_BACK     = H_TOTAL - H_VISIBLE - H_FRONT - H_SYNC; // 52 (68 at 16)
 
     localparam int V_TOTAL    = 262;
     localparam int V_VISIBLE  = 240;
@@ -74,7 +80,7 @@ package g1_pkg;
 
     // Build number, shown as BLD on the diagnostic overlay so a screenshot
     // identifies its sources. Incremented with every release of changed files.
-    localparam [15:0] G1_BUILD = 16'd135;
+    localparam [15:0] G1_BUILD = 16'd141;
 
     //------------------------------------------------------------------------
     // SDRAM region map (byte addresses). One layout for both games; the MRA
