@@ -1466,9 +1466,10 @@ wire vga_ce_sl2 = crt_on_emu ? crt_rd_tick : vga_ce_vz;
 
 // H-Size, H-Position, V-Shift on G1's 456 x 262 raster. HPOS_MODE 1
 // (content shift, native HSync), as rmNeoGeo. In simulation on this raster,
-// content moves 48 px left cleanly; moving right, the right edge starts to
-// clip after ~14 px, because active video ends 16 px before HSync. Mode 0 (sync shift) blacks the whole picture when moved right
-// more than that, so it is not used. crt_adjust_sys.sv carries two local
+// content moves 48 px left cleanly; moving right, the right edge clips once
+// it reaches HSync, so the room is the front porch (H_FRONT in g1_pkg.sv).
+// Mode 0 (sync shift) blacks the whole picture when moved right more than
+// that, so it is not used. crt_adjust_sys.sv carries two local
 // fixes, marked "G1 local": negative H-Position in mode 1 (hoff_s), and line
 // blanking taken from DE rather than vb_in (rd_has_de).
 wire [23:0] vga_data_hs;
@@ -1505,7 +1506,31 @@ crt_adjust_sys #(
 // (crt_adjust_sys.sv, rd_has_de). vb_out is the input VBlank, a line ahead of
 // the emitted content, so ANDing it in (as rmNeoGeo does) would blank the
 // last picture line on G1.
-assign vga_de_hs = ~vga_hb_hs;
+//
+// While CRT Adjust is on, that DE is also kept to one pulse per line, inside
+// the line. The OSD finds lines and frames from DE alone, and two cases broke
+// it on the analog output: with the picture moved right past the sync, the
+// stage's DE runs into the HSync and leaves a stray pulse after it on the
+// first picture line; and PVM V-Size stretches one line per frame to about two,
+// in which a narrow H-Size reads a second pulse. Either makes the OSD place
+// itself off screen. So DE is cut during HSync, a DE already high when HSync
+// rises stays cut until it ends, only the first pulse of a line is kept, and
+// the pixels are blanked with it (black during the sync). A picture moved
+// left into the sync (H-Position left, narrow H-Size) rises during HSync:
+// only its part inside the sync is cut.
+wire crt_de_raw = ~vga_hb_hs;
+reg  crt_de_tail = 0, crt_de_done = 0, crt_de_cut_d = 0, crt_hs_d = 0;
+wire crt_de_cut = crt_de_raw & ~vga_hs_hs & ~crt_de_tail & ~crt_de_done;
+always @(posedge clk_vid) begin
+	crt_de_cut_d <= crt_de_cut;
+	crt_hs_d     <= vga_hs_hs;
+	if (vga_hs_hs & ~crt_hs_d & crt_de_raw) crt_de_tail <= 1'b1;
+	else if (~crt_de_raw)                   crt_de_tail <= 1'b0;
+	if (vga_hs_hs)                       crt_de_done <= 1'b0;
+	else if (crt_de_cut_d & ~crt_de_cut) crt_de_done <= 1'b1;
+end
+assign vga_de_hs = crt_on_emu ? crt_de_cut : crt_de_raw;
+wire [23:0] vga_data_hc = (crt_on_emu & ~crt_de_cut) ? 24'd0 : vga_data_hs;
 
 wire [23:0] vga_data_osd;
 wire        vga_vs_osd, vga_hs_osd, vga_de_osd;
@@ -1519,7 +1544,7 @@ osd vga_osd
 	.osd_status(osd_status),
 
 	.clk_video(clk_vid),
-	.din(vga_data_hs),     // CRT Adjust output (was vga_*_sl)
+	.din(vga_data_hc),     // CRT Adjust output (was vga_*_sl)
 	.hs_in(vga_hs_hs),
 	.vs_in(vga_vs_hs),
 	.de_in(vga_de_hs),
