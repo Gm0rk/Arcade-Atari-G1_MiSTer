@@ -17,8 +17,8 @@ for the [MiSTer](https://github.com/MiSTer-devel) platform.
 
 | Game | Year | Players | ROM sets | Status |
 |---|---|---|---|---|
-| Pit Fighter | 1990 | 3 (2 in some sets) | rev 9; rev 7, 6, 5, 4, 3, 2; rev 1 and Japan rev 3 (2 players); bootleg | **Runs on hardware** (rev 9): attract mode, all three layers, sound, coins and controls. The other sets are not yet tested on hardware. |
-| Hydra | 1990 | 1 | Hydra; prototypes 5-25-90 and 5-14-90 | **Plays on hardware** (Hydra): attract mode, gameplay and sound, which matches MAME. The analog yoke and pedal work on an Xbox 360 controller, and the service-menu tests pass. The prototypes are not yet tested on hardware. |
+| Pit Fighter | 1990 | 3 (2 in some sets) | rev 9; rev 7, 6, 5, 4, 3, 2; rev 1 and Japan rev 3 (2 players); bootleg | **Runs on hardware.** Every set loads its own version. Attract mode, all three layers, sound, coins and controls; the service-menu tests pass, including the Sound Test. Player 3's coin is not yet tested. |
+| Hydra | 1990 | 1 | Hydra; prototypes 5-25-90 and 5-14-90 | **Plays on hardware.** Every set loads its own version. Gameplay and sound, which matches MAME; the analog yoke and pedal work on an Xbox 360 controller, and the service-menu tests pass. |
 
 All 13 sets are named as in MAME 0.264 and load from merged, split or
 non-merged ROM sets.
@@ -31,10 +31,10 @@ ROM loading (.mra)     ███████████████████
 CPU  (68000 + Slapstic)████████████████████  100%
 Memory subsystem       ████████████████████  100%
 Video                  ██████████████████░░   90%
-Sound (JSA II)         ███████████████████░   95%
+Sound (JSA II)         ████████████████████  100%
 I/O and controls       ███████████████████░   95%
                        ────────────────────
-Project                ███████████████████░   94%
+Project                ███████████████████░   96%
 ```
 
 ## The hardware
@@ -64,9 +64,11 @@ right coin mech, and Pit Fighter's `IN0` bits 8–10 carry player 2's buttons.
 ## Using the core
 
 ROMs are not distributed with this core. Put the `.mra` files from `mra/` in
-`_Arcade`, the core (`Arcade-Atari-G1_<date>.rbf` from `releases/`) in
-`_Arcade/cores`, and the MAME ROM sets where your MRAs look for them. Merged
-sets of `pitfight.zip` and `hydra.zip` go into `/games/mame/`. Keep only the
+`_Arcade`, with its `_alternatives` folder (the other revisions, the bootleg
+and the prototypes) as `_Arcade/_alternatives`. Put the core
+(`Arcade-Atari-G1_<date>.rbf` from `releases/`) in `_Arcade/cores`, and the
+MAME ROM sets where your MRAs look for them. Merged sets of `pitfight.zip`
+and `hydra.zip` go into `/games/mame/`. Keep only the
 newest core in `_Arcade/cores`. Any MiSTer SDRAM module is enough.
 
 ### Controls
@@ -104,8 +106,11 @@ The OSD has:
 * **Aspect ratio** and **Scandoubler Fx**: MiSTer's standard options.
 * **[CRT Adjust](https://github.com/rmonic79/MiSTer-CRT-Adjust)**: the
   picture's size and position on a 15 kHz CRT (H-Size, H-Position, V-Shift,
-  V-Size, PVM or Cabinet mode). Analog output only; HDMI is never affected,
-  and it is bypassed while the scandoubler is on.
+  V-Size, PVM or Cabinet mode). At 0 the picture is centred, as with CRT
+  Adjust off, and H-Size grows or shrinks it about the middle of the screen.
+  **CRT Auto-Width** widens it to a standard width, about 93% of a broadcast
+  line, and H-Size trims from there. Analog output only; HDMI is never
+  affected, and it is bypassed while the scandoubler is on.
 * **Service Menu**: the game's own test menu, from the next reset.
 * **Controls** (Hydra only): analog sensitivity for the yoke.
 
