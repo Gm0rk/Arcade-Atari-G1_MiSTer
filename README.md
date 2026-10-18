@@ -29,20 +29,6 @@ db_url = https://raw.githubusercontent.com/Gm0rk/Gm0rkCores/db/db.json.zip
 All 13 sets are named as in MAME 0.264 and load from merged, split or
 non-merged ROM sets.
 
-## Progress
-
-```
-MiSTer integration     ████████████████████  100%
-ROM loading (.mra)     ████████████████████  100%
-CPU  (68000 + Slapstic)████████████████████  100%
-Memory subsystem       ████████████████████  100%
-Video                  ██████████████████░░   90%
-Sound (JSA II)         ████████████████████  100%
-I/O and controls       ███████████████████░   95%
-                       ────────────────────
-Project                ███████████████████░   96%
-```
-
 ## The hardware
 
 Atari G1 was a short-lived board: a 68000 behind Atari's Slapstic bank
@@ -62,8 +48,10 @@ and chip listings are at
 | Settings | 2 KB EEPROM; there are no DIP switches |
 
 Where the core deliberately differs from MAME, it follows the board
-schematics: the sound CPU sees the test switch, player 3's coin drops into the
-right coin mech, and Pit Fighter's `IN0` bits 8–10 carry player 2's buttons.
+schematics: the 68000's bus cycles take the board's wait states (MAME has none,
+so it runs busy scenes faster than the real board), the sound CPU sees the
+test switch, player 3's coin drops into the right coin mech, and Pit Fighter's
+`IN0` bits 8–10 carry player 2's buttons.
 
 ---
 
@@ -118,6 +106,9 @@ The OSD has:
   line, and H-Size trims from there. Analog output only; HDMI is never
   affected, and it is bypassed while the scandoubler is on.
 * **Service Menu**: the game's own test menu, from the next reset.
+* **CPU timing**: **Original** (default) runs the 68000 at the game board's
+  speed, with its bus wait states; **MAME** leaves them out, as MAME does, so
+  busy scenes run faster.
 * **Controls** (Hydra only): analog sensitivity for the yoke.
 
 ---
@@ -168,6 +159,12 @@ loader (`mra_loader.cpp`) is the reference for the MRA layout checks.
 **[CRT Adjust](https://github.com/rmonic79/MiSTer-CRT-Adjust)** by Umberto
 Parisi (**rmonic79**), with help from Andrea Bogazzi: the analog picture
 size and position controls, integrated sys-side.
+
+**[MiSTer-CoreSkill](https://github.com/ppriest/MiSTer-CoreSkill)** by
+**ppriest**: its guide to choosing an arcade core's clocks
+([`clocks.md`](https://github.com/ppriest/MiSTer-CoreSkill/blob/main/mister-arcade-core/references/clocks.md)).
+The core's clocks were checked against it, which led to measuring how fast
+the 68000 really runs and giving it the game board's wait states.
 
 The MiSTer community's existing arcade cores were a useful model for project
 structure and MRA conventions. The Atari GT core's debug overlay is the direct
