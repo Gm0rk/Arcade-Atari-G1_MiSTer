@@ -22,6 +22,13 @@
 //  a 32 K x 16 array with two write ports does not infer as M10K on
 //  Cyclone V.
 //
+//  Port B reads its own copy of the lower half, $FF0000-$FF7FFF: everything
+//  the video side reads ($FF0000-$FF0FFF objects, $FF4000-$FF6FFF tiles) is
+//  there, so vid_addr[14] is always 0 and is ignored. A copy of the whole RAM
+//  would be trimmed to the same size by the fitter, but synthesis would count
+//  it at full size against the block RAM budget, and over budget it quietly
+//  builds smaller RAMs out of registers.
+//
 //  Clock domain: clk_sys (both ports)
 //============================================================================
 
@@ -53,6 +60,8 @@ module g1_mainram (
     // byte writes into word writes.
     logic [7:0] ram_hi [32768];
     logic [7:0] ram_lo [32768];
+    logic [7:0] vid_hi [16384];     // port B's copy of $FF0000-$FF7FFF
+    logic [7:0] vid_lo [16384];
 
     logic [7:0] cpu_q_hi, cpu_q_lo;
     logic [7:0] vid_q_hi, vid_q_lo;
@@ -72,8 +81,10 @@ module g1_mainram (
     end
 
     always_ff @(posedge clk) begin
-        vid_q_hi <= ram_hi[vid_addr];
-        vid_q_lo <= ram_lo[vid_addr];
+        if (we_hi && !wa[14]) vid_hi[wa[13:0]] <= wd_hi;
+        if (we_lo && !wa[14]) vid_lo[wa[13:0]] <= wd_lo;
+        vid_q_hi <= vid_hi[vid_addr[13:0]];
+        vid_q_lo <= vid_lo[vid_addr[13:0]];
     end
 
     assign cpu_dout = {cpu_q_hi, cpu_q_lo};
