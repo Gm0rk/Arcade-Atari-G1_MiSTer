@@ -66,16 +66,17 @@ module g1_rle_objram
     // The descriptor read needs all eight words of an object at once. Split by
     // word, each array has one read and one write port and infers as one M10K
     // (256 x 16); a single 2048-entry array read at eight indices would become
-    // 32,768 registers.
+    // 32,768 registers. ramstyle keeps them in block RAM even when synthesis
+    // thinks block RAM is short.
     //------------------------------------------------------------------------
-    logic [15:0] snap0 [256];
-    logic [15:0] snap1 [256];
-    logic [15:0] snap2 [256];
-    logic [15:0] snap3 [256];
-    logic [15:0] snap4 [256];
-    logic [15:0] snap5 [256];
-    logic [15:0] snap6 [256];
-    logic [15:0] snap7 [256];
+    (* ramstyle = "M10K" *) logic [15:0] snap0 [256];
+    (* ramstyle = "M10K" *) logic [15:0] snap1 [256];
+    (* ramstyle = "M10K" *) logic [15:0] snap2 [256];
+    (* ramstyle = "M10K" *) logic [15:0] snap3 [256];
+    (* ramstyle = "M10K" *) logic [15:0] snap4 [256];
+    (* ramstyle = "M10K" *) logic [15:0] snap5 [256];
+    (* ramstyle = "M10K" *) logic [15:0] snap6 [256];
+    (* ramstyle = "M10K" *) logic [15:0] snap7 [256];
 
     // Copy counter: bits 2:0 select the array (word), bits 10:3 the object.
     wire [7:0] copy_obj  = copy_idx[10:3];
