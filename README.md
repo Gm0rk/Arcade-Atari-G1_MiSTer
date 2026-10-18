@@ -26,9 +26,8 @@ db_url = https://raw.githubusercontent.com/Gm0rk/Gm0rkCores/db/db.json.zip
 | Pit Fighter | 1990 | 3 (2 in some sets) | rev 9; rev 7, 6, 5, 4, 3, 2; rev 1 and Japan rev 3 (2 players); bootleg | **Runs on hardware.** Every set loads its own version. Attract mode, all three layers, sound, coins and controls; the service-menu tests pass, including the Sound Test. Player 3's coin is not yet tested. |
 | Hydra | 1990 | 1 | Hydra; prototypes 5-25-90 and 5-14-90 | **Plays on hardware.** Every set loads its own version. Gameplay and sound, which matches MAME; the analog yoke and pedal work on an Xbox 360 controller, and the service-menu tests pass. |
 
-All 13 sets are named as in MAME 0.264 and load from merged, split or
-non-merged ROM sets.
-
+<img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Pit_Fighter.png" width="400"><img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Hydra.png" width="400">
+<img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Pit_Fighter2.png" width="400"><img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Hydra2.png" width="400">
 ## The hardware
 
 Atari G1 was a short-lived board: a 68000 behind Atari's Slapstic bank
@@ -46,12 +45,6 @@ and chip listings are at
 | Layers | scrolling playfield, fixed alpha (text) layer, scaled RLE motion objects |
 | Palette | 1,280 entries, IRGB-1555 |
 | Settings | 2 KB EEPROM; there are no DIP switches |
-
-Where the core deliberately differs from MAME, it follows the board
-schematics: the 68000's bus cycles take the board's wait states (MAME has none,
-so it runs busy scenes faster than the real board), the sound CPU sees the
-test switch, player 3's coin drops into the right coin mech, and Pit Fighter's
-`IN0` bits 8–10 carry player 2's buttons.
 
 ---
 
