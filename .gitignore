@@ -48,6 +48,7 @@ c5_pin_model_dump.txt
 /CHANGELOG.md
 /PROGRESS.md
 /BUILD.md
+/COMMIT.md
 /sim/
 /tools/
 /mra/make_mras.py
