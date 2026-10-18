@@ -86,6 +86,9 @@ module emu
         "-;",
         // The game's own service (test) menu: turn on, then reset.
         "O[23],Service Menu,Off,On;",
+        // Original: the game board's bus wait states. MAME: none, as fast as
+        // memory allows.
+        "O[50],CPU timing,Original,MAME;",
         "-;",
 `ifdef G1_DEBUG
         "P1,Debug;",
@@ -820,6 +823,7 @@ module emu
         .dbg_clr         (ioctl_download & ~dl_d),
         .rd_probe_rearm  (rd_probe_rearm),
         .force_bootleg   (status[12]),
+        .cpu_fast        (status[50]),
 
         .vblank_rise     (vblank_rise),
 
