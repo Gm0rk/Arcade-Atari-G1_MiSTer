@@ -3,9 +3,10 @@
 //  g1_top.sv -- A047896-01 main board: 68000, memory map, interrupts, bus
 //
 //  The 68000 (fx68k) with program ROM behind the Slapstic (fetched from SDRAM
-//  through the arbiter), work RAM, palette write port, EEPROM, watchdog,
-//  input ports and the Hydra ADC, plus the register interfaces to the RLE
-//  object engine and the JSA II sound board. Follows MAME atarig1.cpp.
+//  through the arbiter, with a word cache), work RAM, palette write port,
+//  EEPROM, watchdog, input ports and the Hydra ADC, plus the register
+//  interfaces to the RLE object engine and the JSA II sound board. Follows
+//  MAME atarig1.cpp; bus cycles take the board's wait states (g1_cpu_timing).
 //
 //  Interrupts: IRQ1 = VBLANK (acknowledged by a write to $FB0000), IRQ2 =
 //  JSA II. The acknowledge cycle is ended with DTACK and an explicit vector.
@@ -40,6 +41,7 @@ module g1_top
     // PLL unlock or an OSD change of the SDRAM read phase.
     input  wire         rd_probe_rearm,
     input  wire         force_bootleg,   // OSD: bypass the Slapstic (plain ROM window)
+    input  wire         cpu_fast,        // OSD: no board wait states (MAME timing)
 
     // ---- Video timing (from g1_video_timing) ------------------------------
     input  wire         vblank_rise,
@@ -158,7 +160,7 @@ module g1_top
     wire        cpu_rw_n, cpu_as_n, cpu_uds_n, cpu_lds_n;
     wire        cpu_e, cpu_vma_n;
     wire [2:0]  cpu_fc;
-    logic       cpu_dtack_n;
+    wire        cpu_dtack_n;
     wire        cpu_bg_n;
 
     // Interrupt levels (vectors supplied by iack_vector below):
@@ -584,20 +586,72 @@ module g1_top
     assign rom_addr = {6'd0, dec_rom_addr, 1'b0} + SDR_PROG;
 
     // Exactly one request per bus cycle: armed when a cycle that selects ROM
-    // starts, cleared by its own ack, and unable to re-arm until the next
-    // cycle. Do not derive the request from a level such as sel_rom &&
-    // !rom_have: it re-asserts in the clock the previous fetch completes, and
-    // the second completion hands the CPU another transaction's data.
+    // starts, cleared by its own ack (or a cache hit), and unable to re-arm
+    // until the next cycle. Do not derive the request from a level such as
+    // sel_rom && !rom_have: it re-asserts in the clock the previous fetch
+    // completes, and the second completion hands the CPU another transaction's
+    // data.
+    //
+    // The cache is looked up in the clock the cycle starts and answers in the
+    // next, the clock the arbiter would first see the request, so a miss goes
+    // to SDRAM exactly as without the cache. The returning word is cached
+    // under the address requested, and only if that address held until the
+    // word came back (the top level latches it when the channel is free) and
+    // the cycle that asked is still running: neither a leftover fetch after a
+    // watchdog reset nor an address that moved (an OSD Slapstic change) may
+    // land under the wrong address.
+    //
+    // Flushed when the CPU is reset by the watchdog (a word read wrongly then
+    // does not stay cached), when the Slapstic option changes, and when the
+    // debug read probes re-arm on an SDRAM capture change.
+    wire        cache_hit;
+    wire [15:0] cache_data;
+
+    logic [18:1] req_addr;
+    logic        req_valid, req_moved;
+    always_ff @(posedge clk) begin
+        if (cyc_start) begin
+            req_valid <= 1'b0;
+            req_moved <= 1'b0;
+        end
+        else if (rom_req && !req_valid && !req_moved) begin
+            req_addr  <= dec_rom_addr;
+            req_valid <= 1'b1;
+        end
+        else if (req_valid && dec_rom_addr != req_addr) begin
+            req_valid <= 1'b0;
+            req_moved <= 1'b1;
+        end
+    end
+    wire fill_ok = req_valid && (dec_rom_addr == req_addr) && !cpu_as_n && sel_rom;
+
+    logic bootleg_d;
+    always_ff @(posedge clk) bootleg_d <= force_bootleg;
+
+    g1_rom_cache u_cache (
+        .clk       (clk),
+        .rst_n     (rst_n),
+        .flush     ((wd_reset && !wd_reset_d) || (force_bootleg != bootleg_d)
+                    || rd_probe_rearm),
+        .lookup    (cyc_start && sel_rom),
+        .addr      (dec_rom_addr),
+        .hit       (cache_hit),
+        .hit_data  (cache_data),
+        .fill      (rom_ack && fill_ok),
+        .fill_addr (req_addr),
+        .fill_data (rom_dout)
+    );
+
     logic rom_pending;
     always_ff @(posedge clk) begin
         if (!rst_n)                    rom_pending <= 1'b0;
         else if (cyc_start && sel_rom) rom_pending <= 1'b1;
-        else if (rom_ack)              rom_pending <= 1'b0;
+        else if (rom_ack || cache_hit) rom_pending <= 1'b0;
     end
 
-    assign rom_req = rom_pending;
+    assign rom_req = rom_pending && !cache_hit;
 
-    // rom_have: rom_data belongs to the bus cycle in progress (DTACK source).
+    // rom_have: rom_data belongs to the bus cycle in progress.
     logic        rom_have;
     logic [15:0] rom_data;
 
@@ -608,6 +662,10 @@ module g1_top
         end else begin
             if (rom_ack) begin
                 rom_data <= rom_dout;
+                rom_have <= 1'b1;
+            end
+            else if (cache_hit && rom_pending) begin
+                rom_data <= cache_data;
                 rom_have <= 1'b1;
             end
 
@@ -622,8 +680,8 @@ module g1_top
     //========================================================================
     //  Read data multiplexer and DTACK
     //========================================================================
-    // Everything except ROM answers within a clock (BRAM or a register), so
-    // its DTACK is immediate; ROM waits on the SDRAM arbiter.
+    // Everything except ROM answers within a clock (BRAM or a register); ROM
+    // comes from the cache or the SDRAM arbiter. DTACK timing is at the end.
     //
     // Unmapped space also asserts DTACK and reads $0000, as in MAME (the G1
     // map does not set unmap_value_high). That includes $FE0000, whose MAME
@@ -647,11 +705,22 @@ module g1_top
         else if (sel_in1_adc) cpu_di = has_adc ? {adc_data, 8'h00} : in1;
     end
 
-    always_comb begin
-        // IACK takes the normal no-wait DTACK, with the vector on the data bus.
-        if (sel_rom) cpu_dtack_n = !rom_have;
-        else         cpu_dtack_n = cpu_as_n;         // everything else: no wait
-    end
+    // DTACK: the board's wait states (or none, Fast), and never before a ROM
+    // word has arrived. IACK takes a no-wait DTACK, with the vector on the
+    // data bus.
+    g1_cpu_timing u_timing (
+        .clk       (clk),
+        .rst_n     (rst_n),
+        .ce_cpu_p1 (ce_cpu_p1),
+        .ce_cpu_p2 (ce_cpu_p2),
+        .fast      (cpu_fast),
+        .as_n      (cpu_as_n),
+        .addr      (cpu_a),
+        .iack      (is_iack),
+        .rom_sel   (sel_rom),
+        .rom_have  (rom_have),
+        .dtack_n   (cpu_dtack_n)
+    );
 
 endmodule
 
