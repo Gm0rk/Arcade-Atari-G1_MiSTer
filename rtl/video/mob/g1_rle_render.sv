@@ -144,7 +144,7 @@ module g1_rle_render
     // Row cache: header at index 0, packet words at 1..entries. Filled on the
     // first read of a source row, read on replays of it.
     //------------------------------------------------------------------------
-    logic [15:0] rowbuf [256];
+    (* ramstyle = "M10K" *) logic [15:0] rowbuf [256];
     logic [15:0] rc_q;
     logic        row_cached;     // rowbuf holds the whole row at row_start_ptr
     logic        use_cache;      // this row's words come from rowbuf
