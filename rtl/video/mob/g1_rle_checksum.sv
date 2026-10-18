@@ -63,7 +63,7 @@ module g1_rle_checksum
     //
     // One muxed read port and one muxed write port, so sums[] infers as RAM.
     // Accumulate (ROM download) and write-back (CHECKSUM) never overlap.
-    logic [15:0] sums [256];
+    (* ramstyle = "M10K" *) logic [15:0] sums [256];
 
     logic [7:0]  sum_raddr, sum_waddr;
     logic [15:0] sum_wdata, sum_q;
