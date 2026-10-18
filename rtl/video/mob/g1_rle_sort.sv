@@ -62,8 +62,10 @@ module g1_rle_sort (
     // head[] has one read and one write index so it infers as one M10K. Do not
     // add a second read (e.g. head[8'hFF] for end detection): it turns the
     // array into 2816 flip-flops. The walk ends on the order counter instead.
-    logic [10:0] head [256];
-    logic [10:0] nxt  [2048];
+    // ramstyle keeps both in block RAM even when synthesis thinks block RAM is
+    // short; it would otherwise build small RAMs from registers.
+    (* ramstyle = "M10K" *) logic [10:0] head [256];
+    (* ramstyle = "M10K" *) logic [10:0] nxt  [2048];
 
     logic [7:0]  head_waddr;
     logic [10:0] head_wdata;
