@@ -34,9 +34,11 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/cpu/g1_slapstic.sv
 # --- Board glue: top level, clock enables, work RAM, EEPROM, ADC, watchdog 
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_adc0809.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_ce.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_cpu_timing.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_eeprom.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_hydra_controls.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_mainram.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_rom_cache.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_top.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/board/g1_watchdog.sv
 
