@@ -85,10 +85,14 @@ module g1_playfield
     logic       wr_sel;
     wire        rd_sel = ~wr_sel;
 
-    // Fine horizontal scroll. The fetcher starts at the tile containing
-    // source pixel xscroll, and writes tile n at buffer position n*8, so the
-    // display reads at disp_x + (xscroll & 7).
-    logic [2:0] fine_x;
+    // Fine horizontal scroll, kept per line buffer. The fetcher starts at the
+    // tile containing source pixel xscroll and writes tile n at buffer position
+    // n*8, so the display reads at disp_x + (xscroll & 7) of the line that
+    // buffer holds. The next line's fetch loads the other buffer's value while
+    // this line is still on screen, so one shared register would shift every
+    // line by the next line's fine scroll.
+    logic [2:0] fine_x0 = 3'd0, fine_x1 = 3'd0;
+    wire  [2:0] fine_x  = rd_sel ? fine_x1 : fine_x0;
     logic [8:0] rd_data;
 
     always_ff @(posedge clk)
@@ -161,7 +165,8 @@ module g1_playfield
             // data, so g1_video only pulses start when both fetchers are idle.
             src_y     <= (line + yscroll) & 9'h1FF;
             first_col <= xscroll[8:3];
-            fine_x    <= xscroll[2:0];
+            if (wr_sel) fine_x0 <= xscroll[2:0];   // new line goes to ~wr_sel
+            else        fine_x1 <= xscroll[2:0];
             tile_idx  <= 6'd0;
             px        <= 3'd0;
             wr_sel    <= ~wr_sel;
@@ -179,7 +184,8 @@ module g1_playfield
                     // per-scanline bias into yscroll.
                     src_y     <= (line + yscroll) & 9'h1FF;
                     first_col <= xscroll[8:3];
-                    fine_x    <= xscroll[2:0];
+                    if (wr_sel) fine_x0 <= xscroll[2:0];   // new line goes to ~wr_sel
+                    else        fine_x1 <= xscroll[2:0];
                     tile_idx  <= 6'd0;
                     px        <= 3'd0;
                     wr_sel    <= ~wr_sel;
