@@ -1,15 +1,11 @@
 # Atari G1 for MiSTer FPGA
 
-A work-in-progress FPGA implementation of Atari Games' **G1** arcade hardware:
+A FPGA implementation of Atari Games' **G1** arcade hardware:
 board **A047896**, the platform under **Pit Fighter** and **Hydra**, written 
 for the [MiSTer](https://github.com/MiSTer-devel) platform.
 
-> **This core was made with AI.** The RTL, testbenches, reference models and
-> documentation were written in collaboration with an AI assistant (Claude, by
-> Anthropic). It worked from MAME's source, from the operator's
-> manual and its schematics. Every change was verified in simulation
-> against a reference and then on a DE10-Nano before being accepted.
-> This is disclosed here so you can make your decision to use this core accordingly.
+> **AI disclosure:** this core was developed using AI and MAME as a reference.
+> (Claude, by Anthropic - Opus 5.5 & Sonnet 5.5).
 
 ---
 
