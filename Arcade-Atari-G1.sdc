@@ -40,13 +40,25 @@ set clk_ram {*|pll|pll_inst|altera_pll_i|*[1].*|divclk}
 #  (as in sys_top.sdc). Without it the collection is empty, the clock is not
 #  created, and every SDRAM delay constraint that references it is dropped.
 #  The guard reports that case in the compilation messages.
+#
+#  A collection is a handle, not a list: llength is 1 even when it holds
+#  nothing, so a guard written with llength never fires. g1_count asks
+#  get_collection_size instead, and returns -1 where that is not available;
+#  the tests below treat -1 as "not known", which for the clock means create it.
 # ---------------------------------------------------------------------------
-if {[llength [get_clocks -nowarn SDRAM_CLK_pin]] == 0} {
+proc g1_count {collection} {
+    if {[catch {get_collection_size $collection} count]} {
+        return -1
+    }
+    return $count
+}
+
+if {[g1_count [get_clocks -nowarn SDRAM_CLK_pin]] <= 0} {
     create_generated_clock -name SDRAM_CLK_pin \
         -source [get_pins -compatibility_mode {*|pll|pll_inst|altera_pll_i|*[2].*|divclk}] \
         [get_ports SDRAM_CLK]
 
-    if {[llength [get_clocks -nowarn SDRAM_CLK_pin]] == 0} {
+    if {[g1_count [get_clocks -nowarn SDRAM_CLK_pin]] == 0} {
         puts "ERROR (Arcade-Atari-G1.sdc): SDRAM_CLK_pin was NOT created --\
 the -source pattern matched no pin. Every SDRAM I/O delay below this point\
 will silently fail too. Check the pattern against the actual PLL instance\
@@ -100,7 +112,7 @@ foreach sdram_grp {
     {SDRAM_CKE}
 } {
     set grp_ports [get_ports -nowarn $sdram_grp]
-    if {[llength $grp_ports] == 0} {
+    if {[g1_count $grp_ports] == 0} {
         puts "WARNING (Arcade-Atari-G1.sdc): no port matches $sdram_grp --\
 skipping its output delay. If this is nCS or CKE, the signal has probably\
 been optimised away as a constant in sdram.sv."
