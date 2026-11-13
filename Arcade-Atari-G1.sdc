@@ -84,8 +84,7 @@ name in the CLOCKS section of a timing report."
 #
 #  On paper the falling edge before t9 is the balanced point. Fitter
 #  placement moves the real window between compiles, so by default the core's
-#  boot-time self-test measures all eight settings and uses the best (OSD:
-#  Debug -> SDRAM capture).
+#  boot-time self-test measures all eight settings and uses the best.
 # ---------------------------------------------------------------------------
 set_input_delay  -clock SDRAM_CLK_pin -max 6.4 [get_ports {SDRAM_DQ[*]}]
 set_input_delay  -clock SDRAM_CLK_pin -min 3.2 [get_ports {SDRAM_DQ[*]}]
