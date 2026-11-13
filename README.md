@@ -29,9 +29,6 @@ A FPGA implementation of Atari Games' G1 arcade board
 | Sound (JSA II) | 6502 @ 1.79 MHz, YM2151 @ 3.58 MHz, OKI6295 @ 1.19 MHz |
 | Settings | 2 KB EEPROM; there are no DIP switches |
 
-Board photographs and chip listings:
-[System 16 - Atari G1 Hardware](https://www.system16.com/hardware.php?id=773).
-
 ## Games
 
 | Game | Main set | Title Screen | Gameplay |
