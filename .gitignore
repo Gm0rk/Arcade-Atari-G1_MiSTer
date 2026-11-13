@@ -78,8 +78,3 @@ timing_report.txt
 # Local backup of the framework files edited for CRT Adjust (see REVERT.md there)
 /backup/
 
-# The debug build (OSD Debug page) stays in the local working copy: its Quartus
-# project (a copy of the production one plus G1_DEBUG), its MRAs and any debug
-# core. Only the production build is published.
-/mra/debug/
-/releases/*Debug*
