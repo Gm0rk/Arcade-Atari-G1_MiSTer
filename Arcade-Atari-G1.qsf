@@ -13,11 +13,6 @@
 #    - The SDC files come from sys/sys.qip (sys_top.sdc) and files.qip
 #      (Arcade-Atari-G1.sdc).
 #
-#  This is the production build: it must never define G1_DEBUG.
-#  Arcade-Atari-G1Debug.qpf/.qsf build the debug version (OSD Debug page); that
-#  .qsf is a full copy of this one plus VERILOG_MACRO "G1_DEBUG=1". Keep the
-#  two in step (sim/qsf_pair_check.py compares them).
-#
 #  After a successful compile, the post-flow script release_rbf.tcl moves
 #  output_files/Arcade-Atari-G1.rbf to releases/Arcade-Atari-G1_YYYYMMDD.rbf.
 #  It does this for this production revision only.
