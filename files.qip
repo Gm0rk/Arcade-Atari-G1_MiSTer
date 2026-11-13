@@ -13,7 +13,6 @@
 #      video/mob/  motion objects: the RLE renderer
 #      jsa2/       the JSA II sound board (a separate PCB)
 #      mem/        FPGA-side only: ROM loader, SDRAM controller and arbiter
-#      debug/      the on-screen diagnostic overlay
 #
 #  Third-party cores (fx68k, T65, jt51, jt6295) are under rtl/, each in its
 #  own folder.
@@ -73,9 +72,6 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/mem/g1_sdram_arb.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/mem/g1_sdram_iface.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/mem/g1_sdram_selftest.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/mem/sdram.sv
-
-# --- Diagnostic overlay --------------------------------------------------
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/debug/g1_dbg_text.sv
 
 # --- Core top level ------------------------------------------------------
 set_global_assignment -name SYSTEMVERILOG_FILE Arcade-Atari-G1.sv
