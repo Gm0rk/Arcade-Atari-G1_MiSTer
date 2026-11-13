@@ -30,7 +30,7 @@ module g1_palette
     output logic [7:0]           vid_r,
     output logic [7:0]           vid_g,
     output logic [7:0]           vid_b,
-    output logic [15:0]          vid_raw      // raw entry, for debug overlays
+    output logic [15:0]          vid_raw      // raw entry (unused)
 );
 
     // Clocks from vid_index to vid_r/g/b.
