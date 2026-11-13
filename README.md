@@ -34,9 +34,6 @@ Board photographs and chip listings:
 
 ## Games
 
-Each game has its own page in [`docs`](docs) with its sets, controls and
-service menu. Both games run on hardware. Every set loads its own version.
-
 | Game | Main set | Title Screen | Gameplay |
 |---|---|---|---|
 | Pit Fighter (1990, Up to 3 players)| pitfight (rev 9) | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Pit_Fighter.png" width="300" alt="Pit Fighter title screen"> | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Pit_Fighter2.png" width="300" alt="Pit Fighter gameplay"> |
