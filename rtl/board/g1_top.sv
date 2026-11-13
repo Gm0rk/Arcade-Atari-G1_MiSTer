@@ -11,7 +11,9 @@
 //  Interrupts: IRQ1 = VBLANK (acknowledged by a write to $FB0000), IRQ2 =
 //  JSA II. The acknowledge cycle is ended with DTACK and an explicit vector.
 //
-//  The dbg_* outputs are sticky diagnostic probes shown by the OSD overlay.
+//  The dbg_* outputs are sticky diagnostic probes. The OSD overlay that showed them was
+//  removed in build 157; the top level leaves them unconnected, and only dbg_cpu_as_n
+//  (the 68000's AS, which the pause uses) is read.
 //
 //  Clock domain: clk_sys, gated by clock enables from g1_ce.
 //============================================================================
