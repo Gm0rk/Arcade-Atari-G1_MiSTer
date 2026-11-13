@@ -12,7 +12,6 @@ A FPGA implementation of Atari Games' G1 arcade board
 - [Games](#games)
 - [Timing and resources](#timing-and-resources)
 - [Features](#features)
-- [Controls](#controls)
 - [ROMs](#roms)
 - [Credits and references](#credits-and-references)
 - [License](#license)
@@ -68,22 +67,6 @@ Every other clock has at least 4.0 ns of setup slack.
 - CRT Adjust by rmonic79: the picture's size and position on a 15 kHz CRT
   (H-Size, H-Position, V-Shift, V-Size in PVM or Cabinet mode).
 
-## Controls
-
-| Pad | Pit Fighter | Hydra |
-|---|---|---|
-| Stick | Move | Left analog stick: the flight yoke (the d-pad also steers) |
-| A, B | Punch, Kick | Left and Right Trigger: laser cannons |
-| X | Jump (also Start) | Left Thumb: select a special weapon |
-| Y | | Right Thumb: fire the special weapon |
-| L | | Boost: launch into the air |
-| R | Coin | Pedal: starts a game, and accelerates |
-| Select | | Coin |
-
-Pit Fighter: Punch + Kick + Jump together is the Super Move. Hydra has no start
-button: hold **Pedal** (R), or push the right stick up. If Hydra's steering or
-pedal feels off-centre, recalibrate it in the service menu's Switch Test.
-
 ## ROMs
 
 ROMs are **not** included in this repository; you need your own dumps of the
@@ -97,9 +80,7 @@ folder beside them, and the core in `_Arcade/cores`.
   (`atarirle.cpp`), `slapstic.cpp`, `atarijsa.cpp` and `eeprom.cpp`: Aaron
   Giles. The reference for this core's behaviour; no MAME code is compiled into
   it
-- Pit Fighter operator's manual and Hydra Universal Kit installation
-  instructions (TM-354), Atari Games: game PCB, JSA Audio II and wiring
-  schematics, and the service menus
+- Atari Games: game PCB, JSA Audio II and wiring schematics
 - [fx68k](https://github.com/ijor/fx68k) (68000): Jorge Cwik
 - T65 (6502): Daniel Wallner, Mike Johnson, Wolfgang Scherr and Morten Leikvoll
 - [JT51 and JT6295](https://github.com/jotego) (YM2151 and OKI6295): Jose
