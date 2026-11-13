@@ -36,8 +36,8 @@ Board photographs and chip listings:
 
 | Game | Main set | Title Screen | Gameplay |
 |---|---|---|---|
-| Pit Fighter (1990, Up to 3 players)| pitfight (rev 9) | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Pit_Fighter.png" width="300" alt="Pit Fighter title screen"> | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Pit_Fighter2.png" width="300" alt="Pit Fighter gameplay"> |
-| Hydra(1990, 1 player)| hydra | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Hydra.png" width="300" alt="Hydra title screen"> | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Hydra2.png" width="300" alt="Hydra gameplay"> |
+| Pit Fighter (1990)| pitfight (rev 9) | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Pit_Fighter.png" width="300" alt="Pit Fighter title screen"> | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Pit_Fighter2.png" width="300" alt="Pit Fighter gameplay"> |
+| Hydra (1990)| hydra | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Hydra.png" width="300" alt="Hydra title screen"> | <img src="https://github.com/Gm0rk/Arcade-Atari-G1_MiSTer/blob/main/images/Hydra2.png" width="300" alt="Hydra gameplay"> |
 
 Other sets are in `_alternatives`: Pit Fighter rev 7, 6, 5, 4, 3, 2, rev 1 and
 Japan rev 3 (2 players) and the bootleg; Hydra prototypes 5-25-90 and 5-14-90.
