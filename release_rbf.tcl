@@ -14,12 +14,11 @@
 #  the file name and the OSD agree. A core already released under that name
 #  is replaced; older dated cores are left alone.
 #
-#  Any other revision, such as the debug build, is skipped, as is a revision
-#  that defines G1_DEBUG. A compile that fails before the Assembler leaves
-#  nothing to release. Failed timing is reported as a warning; the core is
+#  Any other revision is skipped. A compile that fails before the Assembler
+#  leaves nothing to release. Failed timing is reported as a warning; the core is
 #  still released.
 #
-#  Clock report. For either revision, when the compile got through the
+#  Clock report. For whichever revision was compiled, when the compile got through the
 #  Assembler, it runs tools/clock_report.tcl on the compile's own Timing
 #  Analyzer and Fitter reports and writes
 #      output_files/<revision>.clock_report.txt
@@ -84,10 +83,6 @@ proc release {revision} {
         return
     }
     set qsf [qsf_settings $revision]
-    if {[string match "*G1_DEBUG*" $qsf]} {
-        warn "$revision.qsf defines G1_DEBUG, so this is a debug core; nothing released"
-        return
-    }
 
     set outdir [output_dir $qsf]
     set asm "$outdir/$revision.asm.rpt"
