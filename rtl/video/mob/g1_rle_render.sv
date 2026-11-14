@@ -30,6 +30,20 @@
 //    - An object wholly outside the clip window is not drawn. A 4-pixel
 //      margin covers rounding between the scaled width and emitted pixels.
 //
+//  PCB sprite scaling (hpcb, from g1_rle_scaler; the core ties it to 1 since build 164)
+//  uses the same loop with the board's rate multiplier in place of MAME's
+//  centre sampling (US patent 5,363,119, figs. 7-9):
+//
+//      sourcex = 0                       // no half step
+//      growth: dest += 1 every clock,  sourcex += 1/scale (the game's table)
+//      shrink: sourcex += 1 every clock, dest += 1 when acc += scale carries;
+//              source pixels that share an address overwrite each other
+//      hflip:  dest starts at sx and runs left
+//
+//  A row ends when its packets run out; there is no scaled width. The board
+//  spends one 7.16 MHz clock per source pixel on a shrunk row; this spends
+//  one clk_sys (eight times faster). Rows (vertical) are MAME's in both.
+//
 //  Clock domain: clk_sys
 //============================================================================
 
@@ -51,8 +65,11 @@ module g1_rle_render
     input  wire signed [15:0]  sy,
     input  wire [15:0]         sw,         // scaled width
     input  wire [15:0]         sh,         // scaled height
-    input  wire [25:0]         dx,         // 16.16 source step per dest pixel
+    input  wire [25:0]         dx,         // 16.16 source step per emit clock (scaler hstep)
     input  wire [25:0]         dy,
+    input  wire                hpcb,       // rate-multiplier sampling
+    input  wire                hshrink,    // ... shrink form
+    input  wire [11:0]         hrate,      // shrink: address step per source pixel
 
     // ---- Clip window (MRA config) ------------------------------------------
     // Hydra 0..255, Pit Fighter 40..295: 256 wide within the 336-pixel screen.
@@ -101,6 +118,8 @@ module g1_rle_render
     logic [31:0] sourcey;         // 16.16 position in the source
     logic [31:0] sourcex;
     logic [31:0] rle_end;
+    logic [11:0] hacc;            // PCB shrink: address rate multiplier
+    wire  [12:0] hacc_sum = {1'b0, hacc} + {1'b0, hrate};
 
     logic signed [15:0] dest_y;
     logic signed [15:0] dest_x;
@@ -161,9 +180,16 @@ module g1_rle_render
     wire        word_ok   = use_cache ? 1'b1 : rom_ack;
     wire [15:0] word_data = use_cache ? rc_q : rom_dout;
 
-    // Whole-object reject against the clip window, 4-pixel margin.
-    wire signed [17:0] obj_x0 = $signed({{2{sx[15]}}, sx}) - 18'sd4;
-    wire signed [17:0] obj_x1 = $signed({{2{sx[15]}}, sx}) + $signed({2'b00, sw}) + 18'sd4;
+    // Whole-object reject against the clip window, 4-pixel margin. With the
+    // rate multiplier a row can be up to sw/1024 + 2 pixels longer than sw
+    // (the reciprocal is truncated to 12 bits), and a flipped object runs
+    // left from sx: 8-pixel margin, on the side it runs to.
+    wire signed [17:0] sx_w   = $signed({{2{sx[15]}}, sx});
+    wire signed [17:0] sw_w   = $signed({2'b00, sw});
+    wire signed [17:0] obj_x0 = !hpcb ? (sx_w - 18'sd4)
+                              : hflip ? (sx_w - sw_w - 18'sd8) : (sx_w - 18'sd8);
+    wire signed [17:0] obj_x1 = !hpcb ? (sx_w + sw_w + 18'sd4)
+                              : hflip ? (sx_w + 18'sd8) : (sx_w + sw_w + 18'sd8);
     wire obj_outside = (obj_x1 < $signed({9'd0, clip_left}))
                     || (obj_x0 > $signed({9'd0, clip_right}));
 
@@ -264,11 +290,13 @@ module g1_rle_render
                     end else begin
                         entries_left <= word_data[7:0];
                         ptr          <= ptr + 1'b1;
-                        sourcex      <= {6'd0, dx} >> 1;
+                        sourcex      <= hpcb ? 32'd0 : ({6'd0, dx} >> 1);
                         rle_end      <= 32'd0;
+                        hacc         <= 12'd0;
                         // hflip walks the destination backwards from the
-                        // right edge of the scaled object.
-                        dest_x       <= hflip ? (sx + $signed(sw) - 16'sd1) : sx;
+                        // right edge of the scaled object (PCB: from sx,
+                        // which the scaler has put at the mirrored origin).
+                        dest_x       <= (hflip && !hpcb) ? (sx + $signed(sw) - 16'sd1) : sx;
                         state        <= R_PKT_REQ;
                     end
                 end
@@ -308,7 +336,12 @@ module g1_rle_render
                         fb_index <= PAL_BASE_MO + {color, 4'd0} + {4'd0, pkt_value};
                         fb_we    <= 1'b1;
                     end
-                    dest_x  <= hflip ? (dest_x - 16'sd1) : (dest_x + 16'sd1);
+                    // PCB shrink: the address only moves when the rate
+                    // multiplier carries; the next source pixel may land on
+                    // the same address and replace this one.
+                    if (!hshrink || hacc_sum[12])
+                        dest_x <= hflip ? (dest_x - 16'sd1) : (dest_x + 16'sd1);
+                    hacc    <= hacc_sum[11:0];
                     sourcex <= sourcex + {6'd0, dx};
                 end
                 else if (!second_byte) begin
