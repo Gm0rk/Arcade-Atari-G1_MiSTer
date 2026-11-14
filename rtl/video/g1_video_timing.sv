@@ -146,9 +146,18 @@ module g1_video_timing
     //------------------------------------------------------------------------
     // Forced to 0 in blanking, so a consumer that ignores de reads pixel 0
     // rather than indexing a buffer out of range.
+    //
+    // The displayed column runs one dot behind hcnt: column c is on screen
+    // while hcnt = c + 1. That is the window the registered hblank and de
+    // frame (low/high for hcnt 1..H_VISIBLE), and it gives the layers'
+    // line buffers the whole of dot 0 to swap: the swap follows the scroll
+    // read, up to a dot after line_start. Builds up to 151 used hcnt itself,
+    // which showed columns 1..336 in that window (column 0 never, one dot of
+    // blanking at the right), and the top level then delayed the blanking
+    // three more dots: columns 0-3 cut, four blank dots at the right.
     //------------------------------------------------------------------------
     always_comb begin
-        vis_x = hblank ? 9'd0 : hcnt[8:0];
+        vis_x = hblank ? 9'd0 : (hcnt[8:0] - 9'd1);
         vis_y = vblank ? 8'd0 : vcnt[7:0];
     end
 
