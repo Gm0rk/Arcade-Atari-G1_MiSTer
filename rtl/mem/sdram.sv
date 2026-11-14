@@ -123,7 +123,16 @@ module sdram (
     // Bidirectional data bus
     //------------------------------------------------------------------------
     logic [15:0] dq_out;
-    logic        dq_oe;
+
+    // dq_oe is meant to sit in the I/O cells' output-enable registers
+    // (FAST_OUTPUT_ENABLE_REGISTER on SDRAM_DQ, sys/sys.tcl). The build 157
+    // compile could not pack it: warning 176279, "cannot simultaneously use
+    // clear and load signals". Its data delay to the pin was 7.6 to 8.7 ns and
+    // five dq_oe endpoints failed setup (worst -0.881 ns). sys.tcl turns
+    // synchronous controls off for registers named SDRAM_*, which dq_oe is
+    // not, so it is turned off for this one too: here, and by an instance
+    // assignment in the .qsf. Behaviour is unchanged; only the mapping is.
+    (* altera_attribute = "-name ALLOW_SYNCH_CTRL_USAGE OFF" *) logic dq_oe;
     assign SDRAM_DQ = dq_oe ? dq_out : 16'hZZZZ;
 
     // DQM is low in normal operation: every access is a full 16-bit word. A
