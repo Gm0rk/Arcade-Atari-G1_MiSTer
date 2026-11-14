@@ -81,7 +81,7 @@ package g1_pkg;
     // Build number: names the handover zip and the CHANGELOG entry, so a core can be
     // tied to its sources. Incremented with every release of changed files. Not shown
     // on screen since build 157 (the diagnostic overlay that showed it was removed).
-    localparam [15:0] G1_BUILD = 16'd157;
+    localparam [15:0] G1_BUILD = 16'd165;
 
     //------------------------------------------------------------------------
     // SDRAM region map (byte addresses). One layout for both games; the MRA
