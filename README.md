@@ -68,35 +68,10 @@ Every other clock has at least 3.7 ns of setup slack.
 
 ## Features
 
-- CRT Adjust by rmonic79: the picture's size and position on a 15 kHz CRT
-  (H-Size, H-Position, V-Shift, V-Size in PVM or Cabinet mode).
-- CPU timing: the 68000 runs at the game board's speed, with its bus wait
-  states, and the RAM waits are cut short to fit footage of a real board (not a
-  model of the board). There is no OSD option
-- Sprite scaling: scaled sprites are drawn the way the board does it, by the
-  method its patent describes, with the scale table the games load; they differ
-  from MAME's by up to a pixel or two. Against one frame of a real board it
-  places the standing fighter and the floor planks as the board does; small
-  flipped crowd figures move the same way but not far enough. There is no OSD
-  option
+- CRT Adjust by rmonic79: the picture's size and position on a 15 kHz CRT.
 - Color Palette: **Original** (default) is the colour of the game
-  board, fitted to footage of a real board: darker overall (white is about 190,
-  not 255), a low first step (about 20 to 27, where MAME has 8), a softer top
-  end, and a little red and blue mixed into green and green into blue, which
-  keeps the grey pillars grey. A colour channel whose five bits are zero stays
-  black, as on the board. It is a fit to a single compressed video frame, so it
-  holds the capture as well as the board. **MAME** is MAME's linear palette.
+  board, fitted to footage of a real board: darker overall. **MAME** is MAME's linear palette.
   HDMI and analog alike; it switches at once
-- Pause: the game is held while the OSD menu is open (OSD
-  option **Pause when OSD open**, Off by default), and the **Pause** button
-  holds it with nothing on the screen, which is for taking a clean screenshot or
-  video frame. Press it again to carry on. Either way the 68000, the sound board
-  and the watchdog stop, the picture is kept and the sound fades out; the game
-  carries on from the same place. The button has no default: map it in **OSD ->
-  Define joystick buttons**, where it is the last one listed, after Coin. On Pit
-  Fighter any of the three controllers can pause; on Hydra, controller 1. The
-  button comes from the updated `.mra` files in `mra/`. Resetting from the OSD
-  still works, and clears a button pause
 
 ## ROMs
 
