@@ -1,7 +1,7 @@
 # ============================================================================
 #  Atari G1 for MiSTer
-#  release_rbf.tcl -- after a compile: date the core into releases/, and run
-#                     the clock report
+#  release_rbf.tcl -- after a compile: date the core into releases/, run the
+#                     clock report, and write the failing paths if timing failed
 #
 #  Quartus runs this after every compile (POST_FLOW_SCRIPT_FILE in the .qsf),
 #  from the project folder.
@@ -27,16 +27,32 @@
 #  finish, or its reports are not this compile's, the file says it was not run
 #  instead of keeping an old report. Without tools/clock_report.tcl there is no
 #  report. Nothing about the report can stop the release.
+#
+#  Path report. The clock report reads the compile's summary tables, which say
+#  that timing failed but not which paths. So when the compile got through the
+#  Assembler and its Timing Analyzer summary has a negative slack, this runs
+#      quartus_sta -t tools/timing_report.tcl <revision> output_files/<revision>.timing_report.txt
+#  after the release and the clock report: the worst setup and hold paths in
+#  full, one line per failing endpoint, and the SDRAM read-capture crossings.
+#  It takes a minute or two. When timing was met the file says so; where the
+#  compile did not finish, or its reports are not this compile's, it says it
+#  was not run; either way an older report is replaced, never kept. If
+#  quartus_sta cannot be run, a warning gives the command to run by hand.
+#  Without tools/timing_report.tcl there is no report. Nothing about the
+#  report can stop the release.
 # ============================================================================
 
 set production  "Arcade-Atari-G1"
 set release_dir "releases"
 set report_tcl  "tools/clock_report.tcl"
+set path_tcl    "tools/timing_report.tcl"
 
 proc note {msg} { post_message -type info    "release_rbf: $msg" }
 proc warn {msg} { post_message -type warning "release_rbf: $msg" }
 proc report_note {msg} { post_message -type info    "clock_report: $msg" }
 proc report_warn {msg} { post_message -type warning "clock_report: $msg" }
+proc path_note {msg} { post_message -type info    "timing_report: $msg" }
+proc path_warn {msg} { post_message -type warning "timing_report: $msg" }
 
 proc slurp {path} {
     set f [open $path r]
@@ -207,11 +223,114 @@ proc clock_report {revision} {
     report_note "full report: $out"
 }
 
+# --------------------------------------------------------------------- path report
+
+# A report file that says why there is no report, replacing any older one.
+proc path_file_note {out title reason} {
+    catch {
+        set f [open $out w]
+        puts $f $title
+        puts $f $reason
+        close $f
+    }
+}
+
+# Why this compile's reports cannot be used, or "" when they can: the
+# Assembler must have succeeded and the Timing Analyzer's report must be this
+# compile's (newer than the Fitter's).
+proc reports_problem {outdir revision} {
+    set sta "$outdir/$revision.sta.rpt"
+    set fit "$outdir/$revision.fit.rpt"
+    if {[assembler_state $outdir $revision] ne "ok"} {
+        return "this compile did not get through the Assembler"
+    }
+    if {![file exists $sta]} {
+        return "$sta not found (the Timing Analyzer has not written it)"
+    }
+    if {[file exists $fit] && [file mtime $sta] < [file mtime $fit]} {
+        return "$sta is older than $fit, so it belongs to an earlier compile"
+    }
+    return ""
+}
+
+# Did the Timing Analyzer's summary report a negative slack? With no summary
+# to read the answer is unknown, and unknown counts as yes.
+proc timing_failed {outdir revision} {
+    set summary "$outdir/$revision.sta.summary"
+    if {![file exists $summary]} { return 1 }
+    return [regexp {Slack\s*:\s*-} [slurp $summary]]
+}
+
+# quartus_sta sits beside the quartus_sh that is running this script.
+proc find_sta {} {
+    if {[info exists ::quartus(binpath)]} {
+        foreach name {quartus_sta quartus_sta.exe} {
+            set p [file join $::quartus(binpath) $name]
+            if {[file exists $p]} { return $p }
+        }
+    }
+    return quartus_sta
+}
+
+# The last n non-empty lines of a command's output, on one line.
+proc tail_lines {text n} {
+    set keep {}
+    foreach line [split $text "\n"] {
+        set line [string trim $line]
+        if {$line ne ""} { lappend keep $line }
+    }
+    return [join [lrange $keep end-[expr {$n - 1}] end] " | "]
+}
+
+proc path_report {revision} {
+    global path_tcl
+
+    if {![file exists $path_tcl]} {
+        path_note "$path_tcl not found; no path report"
+        return
+    }
+    set outdir [output_dir [qsf_settings $revision]]
+    set out "$outdir/$revision.timing_report.txt"
+    set manual "quartus_sta -t $path_tcl $revision"
+
+    set problem [reports_problem $outdir $revision]
+    if {$problem ne ""} {
+        path_file_note $out "PATH REPORT NOT RUN FOR THIS COMPILE" $problem
+        path_note "skipped: $problem"
+        return
+    }
+    if {![timing_failed $outdir $revision]} {
+        path_file_note $out "NO PATH REPORT: TIMING WAS MET" \
+            "The Timing Analyzer reported no negative slack, so there are no failing paths to list.\nFor the worst paths anyway: $manual"
+        path_note "timing met; no failing paths to write"
+        return
+    }
+
+    # If quartus_sta cannot even start, this note is what stays, not an old report.
+    path_file_note $out "PATH REPORT NOT FINISHED" \
+        "quartus_sta was started on this compile and did not finish writing this file.\nRun it by hand: $manual"
+    path_note "timing failed: writing the failing paths to $out (a minute or two)"
+
+    set cmd [list [find_sta] -t $path_tcl $revision $out]
+    if {[catch {eval exec $cmd 2>@1} log]} {
+        path_warn "quartus_sta stopped: [tail_lines $log 3]. To run it by hand: $manual"
+        return
+    }
+    if {![file exists $out] || ![regexp {script version} [slurp $out]]} {
+        path_warn "quartus_sta finished but $out has no report. To run it by hand: $manual"
+        return
+    }
+    path_note "failing paths: $out"
+}
+
 # The release comes first and its errors still stop the script, but only after
-# the clock report has had its turn.
+# the clock report and the path report have had their turn.
 set revision [lindex $quartus(args) 2]
 set release_failed [catch {release $revision} release_error]
 if {[catch {clock_report $revision} report_error]} {
     report_warn "stopped: $report_error"
+}
+if {[catch {path_report $revision} path_error]} {
+    path_warn "stopped: $path_error"
 }
 if {$release_failed} { error $release_error }
