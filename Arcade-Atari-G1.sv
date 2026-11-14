@@ -83,9 +83,21 @@ module emu
         "-;",
         // The game's own service (test) menu: turn on, then reset.
         "O[23],Service Menu,Off,On;",
-        // Original: the game board's bus wait states. MAME: none, as fast as
-        // memory allows.
-        "O[50],CPU timing,Original,MAME;",
+        // Color Palette. Original: the game board's colour levels, fitted to footage of a
+        // real board (g1_pal_decode.sv): a channel whose five bits are zero is
+        // black, the rest sit on a pedestal, with a softer top end and a
+        // little red and blue mixed into green. A fit to one compressed frame,
+        // so it holds the capture as well as the board. MAME: its linear
+        // IRGB-1555 palette. Both outputs; switches live. Status bit 58 is
+        // new (build 164): a setting saved on bit 55 by builds 156 to 163 is
+        // dropped, so every unit starts on Original. (Bits 53, 55 and 56 are
+        // unused; earlier builds kept a Colour curve setting there.)
+        "O[58],Color Palette,Original,MAME;",
+        "-;",
+        // Holds the 68000, the sound board, the watchdog and the VBLANK
+        // events while the OSD menu is open; video keeps running, so the
+        // picture holds (g1_pause.sv). Info messages do not pause.
+        "O[54],Pause when OSD open,Off,On;",
         "-;",
         // Every Controls line carries h0, so the page stays hidden for Pit
         // Fighter in MiSTer's flat (single-page) OSD mode too.
@@ -98,8 +110,9 @@ module emu
         "T[0],Reset;",
         "R[0],Reset and close OSD;",
         // Overridden by each MRA's <buttons>; matches Pit Fighter's list so a
-        // bare .rbf maps the same way (see Inputs).
-        "J1,Punch,Kick,Jump,Start,Coin;",
+        // bare .rbf maps the same way (see Inputs). Pause is the last button
+        // (Pit Fighter bit 9, Hydra bit 11), unmapped until the user maps it.
+        "J1,Punch,Kick,Jump,Start,Coin,Pause;",
         "jn,A,B,X,Start,R;",
         "v,0;",
         "V,v",`BUILD_DATE
@@ -208,6 +221,11 @@ module emu
     // The ROM image is download index 0, the same test g1_rom_loader uses.
     wire rom_loading = ioctl_download && (ioctl_index[5:0] == 6'd0);
 
+    // OSD "Pause when OSD open" (g1_pause.sv, instantiated with the board):
+    // freeze holds the 68000 and the sound board; request is what the audio
+    // fade follows.
+    wire pause_freeze, pause_request;
+
     wire ce_pix, ce_cpu_p1, ce_cpu_p2, ce_14m, ce_ym, ce_6502, ce_oki;
 
     g1_ce u_ce
@@ -215,6 +233,7 @@ module emu
         .clk       (clk_sys),
         .rst_n     (rst_n),
         .cpu_div2  (1'b0),
+        .freeze    (pause_freeze),
         .ce_pix    (ce_pix),
         .ce_cpu_p1 (ce_cpu_p1),
         .ce_cpu_p2 (ce_cpu_p2),
@@ -525,8 +544,10 @@ module emu
     // bit 4. The MRA list overrides the CONF_STR J1 line, so the games differ:
     //
     //   Pit Fighter  [4] Punch  [5] Kick  [6] Jump  [7] Start  [8] Coin
+    //                [9] Pause
     //   Hydra        [4] Left Trigger  [5] Right Trigger  [6] Left Thumb
     //                [7] Right Thumb   [8] Boost  [9] Pedal  [10] Coin
+    //                [11] Pause
     //                (Hydra has no start button: the pedal starts a game)
     //------------------------------------------------------------------------
     // Service/test switch (IN0 bit 14, active low), from the OSD. MAME's
@@ -663,6 +684,15 @@ module emu
     wire        nv_dirty;
     wire        vblank_rise;
 
+    // While the game is held, video timing still runs, but its VBLANK must
+    // not reach the game: it would set IRQ1 and count the watchdog towards a
+    // reset (3 s is 180 frames), and with the control register's ERASE bit
+    // set, the next VBLANK would wipe the displayed motion-object buffer
+    // (g1_rle_fb), so the sprites would vanish a frame or two into the pause.
+    wire        vblank_rise_g = vblank_rise & ~pause_freeze;
+
+    wire        cpu_as_n;      // the 68000's AS, for the pause
+
     g1_top u_board
     (
         .clk             (clk_sys),
@@ -677,9 +707,13 @@ module emu
         // The ROM cache also flushes while the PLL is unlocked.
         .rd_probe_rearm  (load_clear),
         .force_bootleg   (1'b0),
-        .cpu_fast        (status[50]),
+        // CPU timing is fixed at "PCB fit": the game board's bus wait states
+        // with the RAM slot wait capped (build 163; it was OSD status[51:50]
+        // up to build 162, and those two bits are now unused).
+        .cpu_fast        (1'b0),
+        .cpu_ram_fit     (1'b1),
 
-        .vblank_rise     (vblank_rise),
+        .vblank_rise     (vblank_rise_g),
 
         .in0             (in0),
         .in1             (in1),
@@ -727,7 +761,7 @@ module emu
         .nv_dirty        (nv_dirty),
 
         .dbg_cpu_addr    (),
-        .dbg_cpu_as_n    (),
+        .dbg_cpu_as_n    (cpu_as_n),
         .dbg_unmapped    (),
         .dbg_hit         (),
         .dbg_wd_count    (),
@@ -740,6 +774,29 @@ module emu
         .dbg_ra_pk       (),
         .dbg_ack_count   (),
         .dbg_cyc_count   ()
+    );
+
+    //------------------------------------------------------------------------
+    // Pause: when the OSD is open (OSD option) and from the Pause button, which
+    // toggles (any of the three Pit Fighter pads; Hydra has one). The hold
+    // begins between 68000 bus cycles (cpu_as_n is the 68000's AS);
+    // OSD_STATUS is the framework's OSD flag, already in the clk_sys domain
+    // (see g1_pause.sv).
+    //------------------------------------------------------------------------
+    wire pause_btn = is_pitfight ? (joystick_0[9] | joystick_1[9] | joystick_2[9])
+                                 : joystick_0[11];
+
+    g1_pause u_pause
+    (
+        .clk       (clk_sys),
+        .rst_n     (rst_n),
+        .enable    (status[54]),
+        .osd_open  (OSD_STATUS),
+        .btn       (pause_btn),
+        .cpu_as_n  (cpu_as_n),
+        .cpu_ce    (ce_cpu_p1 | ce_cpu_p2),
+        .request   (pause_request),
+        .freeze    (pause_freeze)
     );
 
     // NVRAM transfers use ioctl index 2 in both directions.
@@ -882,6 +939,11 @@ module emu
         // 9-bit clip: config byte 4 plus flags bit 2. Pit Fighter's right
         // edge (295) does not fit in a byte.
         .clip_right    ({cfg.flags[2], cfg.mo_right}),
+        // Sprite scaling is fixed at the board's rate multiplier (US patent
+        // 5,363,119; g1_rle_scaler.sv). It was OSD status[52], MAME or PCB,
+        // up to build 163, and that bit is now unused. The MAME drawing is
+        // still in the RTL: tie this to 0 to get it back.
+        .pcb_scale     (1'b1),
 
         .ctrl          (rle_ctrl),
         .ctrl_wr       (rle_ctrl_wr),
@@ -892,7 +954,7 @@ module emu
         // MAME uses vpos only through min(239, vpos) and partial = vpos, so
         // any value >= 240 is exact for all of VBLANK (vis_y reads 0 there).
         .vpos          (vblank ? 9'd240 : {1'b0, vis_y}),
-        .vblank_rise   (vblank_rise),
+        .vblank_rise   (vblank_rise_g),
 
         .vram_addr     (rle_vaddr),
         .vram_req      (rle_vreq),
@@ -935,6 +997,7 @@ module emu
     g1_palette u_palette
     (
         .clk       (clk_sys),
+        .curve_mame(status[58]),
         .cpu_addr  (pal_addr),
         .cpu_din   (pal_din),
         .cpu_wr_hi (pal_wr_hi),
@@ -947,20 +1010,15 @@ module emu
         .vid_raw   ()
     );
 
-    // The mixer registers its output and the palette adds two clocks, so
-    // blanking and sync are delayed three pixels to match; otherwise the
-    // picture shifts right and loses pixels at the end of each line.
-    localparam int VID_DELAY = 3;
-    logic [VID_DELAY-1:0] hb_dly, vb_dly, hs_dly, vs_dly;
-
-    always_ff @(posedge clk_sys) begin
-        if (ce_pix) begin
-            hb_dly <= {hb_dly[VID_DELAY-2:0], hblank};
-            vb_dly <= {vb_dly[VID_DELAY-2:0], vblank};
-            hs_dly <= {hs_dly[VID_DELAY-2:0], hsync};
-            vs_dly <= {vs_dly[VID_DELAY-2:0], vsync};
-        end
-    end
+    // Blanking and sync go to arcade_video as g1_video_timing registers them.
+    // The line buffers, mixer and palette take a few clk_sys, not dots, so
+    // the colour arcade_video samples at a ce_pix belongs to the dot that
+    // edge ends, and the registered hblank frames dots 1..336, where vis_x
+    // shows columns 0..335. Builds up to 151 delayed blanking and sync three
+    // more dots: columns 0-3 were cut and four blank dots showed at the
+    // right (sim/tb_video_contention.sv: frame_out.txt against frame_old.txt).
+    // The sync moved with the blanking, so the window's place on a CRT is
+    // unchanged; the picture inside it moved four dots right.
 
 `ifdef MISTER_CRT_ADJUST
     //------------------------------------------------------------------------
@@ -986,7 +1044,7 @@ module emu
         .crt_vsize   (CRT_VSIZE),
         .crt_vsmode  (CRT_VSMODE)
     );
-    assign CRT_VBL = vb_dly[VID_DELAY-1];   // the VBlank arcade_video receives
+    assign CRT_VBL = vblank;   // the VBlank arcade_video receives
 `endif
 
     arcade_video #(.WIDTH(H_VISIBLE), .DW(24)) u_arcade_video
@@ -994,10 +1052,10 @@ module emu
         .clk_video (clk_sys),
         .ce_pix    (ce_pix),
         .RGB_in    ({pal_r, pal_g, pal_b}),
-        .HBlank    (hb_dly[VID_DELAY-1]),
-        .VBlank    (vb_dly[VID_DELAY-1]),
-        .HSync     (hs_dly[VID_DELAY-1]),
-        .VSync     (vs_dly[VID_DELAY-1]),
+        .HBlank    (hblank),
+        .VBlank    (vblank),
+        .HSync     (hsync),
+        .VSync     (vsync),
         .CLK_VIDEO (CLK_VIDEO),
         .CE_PIXEL  (CE_PIXEL),
         .VGA_R     (VGA_R),
@@ -1015,8 +1073,22 @@ module emu
     //========================================================================
     //  Audio
     //========================================================================
-    assign AUDIO_L   = audio_l;
-    assign AUDIO_R   = audio_r;
+    // Faded out while the OSD pauses the game (g1_audio_fade.sv); unity,
+    // and bit-exact, otherwise.
+    wire signed [15:0] audio_l_f, audio_r_f;
+
+    g1_audio_fade u_audio_fade
+    (
+        .clk   (clk_sys),
+        .mute  (pause_request),
+        .in_l  (audio_l),
+        .in_r  (audio_r),
+        .out_l (audio_l_f),
+        .out_r (audio_r_f)
+    );
+
+    assign AUDIO_L   = audio_l_f;
+    assign AUDIO_R   = audio_r_f;
     assign AUDIO_S   = 1'b1;   // JSA II output is signed
     assign AUDIO_MIX = 2'd0;   // the board is mono; no stereo mix to apply
 
