@@ -43,7 +43,8 @@ module g1_top
     // PLL unlock or an OSD change of the SDRAM read phase.
     input  wire         rd_probe_rearm,
     input  wire         force_bootleg,   // OSD: bypass the Slapstic (plain ROM window)
-    input  wire         cpu_fast,        // OSD: no board wait states (MAME timing)
+    input  wire         cpu_fast,        // no board wait states (MAME timing); tied 0 in the core
+    input  wire         cpu_ram_fit,     // RAM slot wait capped (PCB fit timing); tied 1 in the core
 
     // ---- Video timing (from g1_video_timing) ------------------------------
     input  wire         vblank_rise,
@@ -716,6 +717,7 @@ module g1_top
         .ce_cpu_p1 (ce_cpu_p1),
         .ce_cpu_p2 (ce_cpu_p2),
         .fast      (cpu_fast),
+        .ram_fit   (cpu_ram_fit),
         .as_n      (cpu_as_n),
         .addr      (cpu_a),
         .iack      (is_iack),
