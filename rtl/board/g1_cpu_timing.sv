@@ -15,8 +15,17 @@
 //                               the video
 //    everything else        1   program ROM, palette, I/O
 //
-//  MAME has no wait states, and neither does the Fast setting here: DTACK as
-//  soon as the data is there.
+//  MAME has no wait states, and neither does the fast input here: DTACK as
+//  soon as the data is there. The core ties fast to 0 and ram_fit to 1 (PCB
+//  fit, below, the only timing it has had since build 163); the inputs stay
+//  for the benches, which run all three.
+//
+//  ram_fit ("PCB fit") is NOT a model of the board. It caps the RAM slot
+//  wait at RAM_FIT_MAX clocks (a RAM cycle then has at most 1 + RAM_FIT_MAX
+//  wait states). Replaying MAME's bus trace of the three attract-mode bursts,
+//  a cap of 3 cuts the wait time in them to 0.92 of the board model's, 2 to
+//  0.74; the PCB footage measured 0.87 +- 0.07 of this core's loss
+//  (docs/CPU_TIMING_NOTES.md). Everything else is as in the board timing.
 //
 //  fx68k samples DTACK on a PHI2 enable; DTACK asserted once PHASE0 phase
 //  enables have passed since AS fell still gives a zero-wait cycle, and each
@@ -33,13 +42,15 @@
 
 module g1_cpu_timing #(
     parameter int PHASE0   = 2,       // last zero-wait DTACK point, in phases
-    parameter int RAM_SLOT = 0        // CPU clock (mod 8) of the RAM slot
+    parameter int RAM_SLOT = 0,       // CPU clock (mod 8) of the RAM slot
+    parameter int RAM_FIT_MAX = 3     // ram_fit: longest RAM slot wait, in clocks
 )(
     input  wire        clk,
     input  wire        rst_n,
     input  wire        ce_cpu_p1,     // the 68000's phase enables
     input  wire        ce_cpu_p2,
-    input  wire        fast,          // OSD: no board wait states (MAME)
+    input  wire        fast,          // no board wait states (MAME); 0 in the core
+    input  wire        ram_fit,       // RAM slot wait capped (PCB fit); 1 in the core
 
     input  wire        as_n,
     input  wire [23:1] addr,
@@ -74,7 +85,8 @@ module g1_cpu_timing #(
     // RAM: the counter loads at the first CPU clock edge in the slot, from the
     // clock after AS on; that edge is one wait state, each clock before it one
     // more.
-    wire [2:0] ram_wait = 3'(RAM_SLOT) - clk8 - 3'd1;
+    wire [2:0] ram_slot = 3'(RAM_SLOT) - clk8 - 3'd1;
+    wire [2:0] ram_wait = (ram_fit && ram_slot > 3'(RAM_FIT_MAX)) ? 3'(RAM_FIT_MAX) : ram_slot;
 
     logic [3:0] waits;
     always_comb begin
