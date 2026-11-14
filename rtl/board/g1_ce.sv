@@ -14,6 +14,14 @@
 //  The board clocks the 68000 from the 14.318 MHz oscillator at x1 (as MAME
 //  does), though the fitted part is an MC68HC000P12F (12.5 MHz grade);
 //  cpu_div2 selects 7.159 MHz instead at runtime.
+//
+//  freeze (OSD "Pause when OSD open", g1_pause.sv) drops the 68000 and JSA II
+//  enables, which holds both CPUs, the YM2151 and the OKI where they stand;
+//  the dividers keep counting, and the sound dividers' own phase is kept (the
+//  OKI's modulo-3 count only steps on a YM tick that is let through). The
+//  dot clock ce_pix and the unused ce_14m are not gated: video timing runs on.
+//  Deleting any stretch of the 68000 enables leaves phi1 and phi2 still
+//  alternating in time, which is all fx68k needs.
 //============================================================================
 
 `default_nettype none
@@ -26,6 +34,9 @@ module g1_ce (
     // 1 = 68000 at  7.159090 MHz
     // Safe to change at any time: the divider is free-running.
     input  wire  cpu_div2,
+
+    // 1 = hold the 68000 and the sound board (see above)
+    input  wire  freeze,
 
     output logic ce_pix,      //  7.159090 MHz dot clock
 
@@ -55,12 +66,12 @@ module g1_ce (
 
         if (cpu_div2) begin
             // 7.159090 MHz: phases 4 clk_sys apart
-            ce_cpu_p1 = (div[2:0] == 3'd0);
-            ce_cpu_p2 = (div[2:0] == 3'd4);
+            ce_cpu_p1 = (div[2:0] == 3'd0) && !freeze;
+            ce_cpu_p2 = (div[2:0] == 3'd4) && !freeze;
         end else begin
             // 14.318181 MHz: phases 2 clk_sys apart
-            ce_cpu_p1 = (div[1:0] == 2'd0);
-            ce_cpu_p2 = (div[1:0] == 2'd2);
+            ce_cpu_p1 = (div[1:0] == 2'd0) && !freeze;
+            ce_cpu_p2 = (div[1:0] == 2'd2) && !freeze;
         end
     end
 
@@ -76,6 +87,10 @@ module g1_ce (
     logic [4:0] snd_div;
     logic [1:0] oki_div;
 
+    // A tick is let through only when not frozen; the OKI count steps on the
+    // ticks that are let through.
+    wire ym_tick = (snd_div[3:0] == 4'd0) && !freeze;
+
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             snd_div <= '0;
@@ -86,12 +101,12 @@ module g1_ce (
         end else begin
             snd_div <= snd_div + 1'b1;
 
-            ce_ym   <= (snd_div[3:0] == 4'd0);
-            ce_6502 <= (snd_div[4:0] == 5'd0);
+            ce_ym   <= ym_tick;
+            ce_6502 <= (snd_div[4:0] == 5'd0) && !freeze;
 
             // OKI: modulo-3 count of YM-rate ticks
             ce_oki <= 1'b0;
-            if (snd_div[3:0] == 4'd0) begin
+            if (ym_tick) begin
                 if (oki_div == 2'd2) begin
                     oki_div <= 2'd0;
                     ce_oki  <= 1'b1;
