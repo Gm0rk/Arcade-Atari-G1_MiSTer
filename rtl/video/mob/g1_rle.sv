@@ -40,6 +40,7 @@ module g1_rle
     input  wire [10:0]  obj_count,     // ROM objects: 768 Hydra, 1312 Pit Fighter
     input  wire [8:0]   clip_left,     // MO clip window, screen X
     input  wire [8:0]   clip_right,
+    input  wire         pcb_scale,     // sprite scaling as the board's rate multiplier (1 in the core)
 
     // ---- Registers written by the 68000 -----------------------------------
     input  wire [2:0]   ctrl,          // $FA0001 bits 2:0
@@ -251,7 +252,9 @@ module g1_rle
     logic        scale_start;
     wire signed [15:0] sc_sx, sc_sy;
     wire [15:0]  sc_sw, sc_sh;
-    wire [25:0]  sc_dx, sc_dy;
+    wire [25:0]  sc_dx, sc_dy, sc_hstep;
+    wire         sc_hpcb, sc_hshrink;
+    wire [11:0]  sc_hrate;
     wire         sc_skip, sc_done, sc_busy;
 
     // Hotspot offsets come from the ROM object header, held in the prescan
@@ -276,6 +279,11 @@ module g1_rle
         .xpos   (obj_xpos_clip),
         .ypos   (obj_ypos),
         .hflip  (obj_hflip),
+        .pcb    (pcb_scale),
+        .hstep  (sc_hstep),
+        .hpcb   (sc_hpcb),
+        .hshrink(sc_hshrink),
+        .hrate  (sc_hrate),
         .sx     (sc_sx),
         .sy     (sc_sy),
         .sw     (sc_sw),
@@ -308,8 +316,11 @@ module g1_rle
         .sy         (sc_sy),
         .sw         (sc_sw),
         .sh         (sc_sh),
-        .dx         (sc_dx),
+        .dx         (sc_hstep),
         .dy         (sc_dy),
+        .hpcb       (sc_hpcb),
+        .hshrink    (sc_hshrink),
+        .hrate      (sc_hrate),
         .clip_left  (clip_left),
         .clip_right (clip_right),
         .rom_addr   (rnd_rom_addr),
