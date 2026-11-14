@@ -27,6 +27,25 @@
 //  divider suffice: about 70 clocks per object, for at most 256 objects per
 //  frame. Pixel emission in g1_rle_render is the bottleneck.
 //
+//  PCB sprite scaling (input pcb, the core ties it to 1 since build 164). US patent
+//  5,363,119 describes the board's line fill: no scaled width and no centre
+//  sampling, but a rate multiplier.
+//    - Growth (scale >= $1000): the frame-buffer address steps every clock
+//      and the source advances by 1/scale, taken from a table the 68000
+//      loads into parameter RAM. Pit Fighter writes it at $FF3A00:
+//      768 words, $8000 | floor(2^24 / ($1000 + 16*i)), so it is indexed by
+//      (scale - $1000) >> 4 and has a 12-bit fraction. hstep is that value
+//      as 16.16, computed here with the divider instead of read from RAM.
+//    - Shrink (scale < $1000): the source steps every clock and the address
+//      advances by scale (hrate, 12-bit fraction); several source pixels
+//      land on one address and the last one written stays.
+//    - The line starts at xpos - scaled_xoffs; a flipped object starts at
+//      xpos + scaled_xoffs and runs left ("around the center of mass").
+//  The start phase (0 here, as in the patent's fig. 8b) and the rounding of
+//  the offset product are not in the patent. Vertical scaling stays MAME's.
+//  A scale of $4000 or more is outside the table: such an object is drawn
+//  MAME's way. See docs/PATENT_SCALING_NOTES.md.
+//
 //  Clock domain: clk_sys
 //============================================================================
 
@@ -46,6 +65,7 @@ module g1_rle_scaler (
     input  wire signed [15:0]  xpos,       // descriptor word 2, sign extended
     input  wire signed [15:0]  ypos,       // descriptor word 3, sign extended
     input  wire                hflip,
+    input  wire                pcb,        // OSD: the board's rate multiplier
 
     // ---- Result -----------------------------------------------------------
     output logic signed [15:0] sx,         // destination origin
@@ -54,6 +74,11 @@ module g1_rle_scaler (
     output logic [15:0]        sh,         // scaled height, >= 1
     output logic [25:0]        dx,         // 16.16 source step per dest pixel
     output logic [25:0]        dy,
+    // Horizontal sampling for g1_rle_render. With pcb off: hstep = dx.
+    output logic [25:0]        hstep,      // 16.16 source step per emit clock
+    output logic               hpcb,       // this object uses the rate multiplier
+    output logic               hshrink,    // ... its shrink form
+    output logic [11:0]        hrate,      // shrink: address step per source pixel
     output logic               skip,       // scale == 0: do not render
     output logic               done,
     output logic               busy
@@ -127,7 +152,7 @@ module g1_rle_scaler (
     //------------------------------------------------------------------------
     // Sequencer
     //------------------------------------------------------------------------
-    typedef enum logic [3:0] {
+    typedef enum logic [4:0] {
         S_IDLE,
         S_MUL_XOFF,  S_MUL_XOFF_R,
         S_MUL_YOFF,  S_MUL_YOFF_R,
@@ -136,12 +161,14 @@ module g1_rle_scaler (
         S_MUL_H,     S_MUL_H_R,
         S_DIV_X,     S_DIV_X_W,
         S_DIV_Y,     S_DIV_Y_W,
+        S_DIV_R,     S_DIV_R_W,
         S_DONE
     } state_t;
 
     state_t state;
 
     logic signed [15:0] scaled_xoffs, scaled_yoffs;
+    logic signed [15:0] sxo_raw;     // scaled_xoffs before the hflip mirror
     logic [19:0]        scalex;      // scale << 4, 16.16
 
     assign busy = (state != S_IDLE);
@@ -167,6 +194,10 @@ module g1_rle_scaler (
                         done  <= 1'b1;
                     end else begin
                         skip   <= 1'b0;
+                        // Latched per object, so the OSD can change mid-frame.
+                        hpcb    <= pcb && (scale < 16'h4000);
+                        hshrink <= pcb && (scale < 16'h1000);
+                        hrate   <= scale[11:0];
                         scalex <= {scale, 4'd0};
                         mul_a  <= {{10{xoffs[15]}}, xoffs};
                         mul_b  <= {1'b0, scale};
@@ -178,6 +209,7 @@ module g1_rle_scaler (
             S_MUL_XOFF: state <= S_MUL_XOFF_R;
             S_MUL_XOFF_R: begin
                 scaled_xoffs <= mul_r[27:12];
+                sxo_raw      <= mul_r[27:12];
                 mul_a        <= {{10{yoffs[15]}}, yoffs};
                 mul_b        <= {1'b0, scale};
                 state        <= S_MUL_YOFF;
@@ -225,7 +257,9 @@ module g1_rle_scaler (
                 // draws one pixel, and the divider never sees zero.
                 if (sw == 16'd0) sw <= 16'd1;
 
-                sx <= xpos - scaled_xoffs;
+                // PCB and flipped: the first pixel, at the mirrored origin;
+                // the renderer runs left from it.
+                sx <= (hpcb && hflip) ? (xpos + sxo_raw) : (xpos - scaled_xoffs);
                 sy <= ypos - scaled_yoffs;
 
                 // dx = (width << 16) / scaled_width
@@ -255,7 +289,27 @@ module g1_rle_scaler (
 
             S_DIV_Y_W:
                 if (div_done) begin
-                    dy    <= div_quo;
+                    dy <= div_quo;
+                    if (hpcb && !hshrink) begin
+                        // 1/scale as the game's table holds it:
+                        // floor(2^24 / (scale with its low four bits clear)).
+                        div_num <= 26'h1000000;
+                        div_den <= {scale[15:4], 4'd0};
+                        state   <= S_DIV_R;
+                    end else begin
+                        hstep <= hshrink ? 26'h0010000 : dx;
+                        state <= S_DONE;
+                    end
+                end
+
+            S_DIV_R: begin
+                div_start <= 1'b1;
+                state     <= S_DIV_R_W;
+            end
+
+            S_DIV_R_W:
+                if (div_done) begin
+                    hstep <= {div_quo[21:0], 4'd0};   // 4.12 -> 16.16
                     state <= S_DONE;
                 end
 
