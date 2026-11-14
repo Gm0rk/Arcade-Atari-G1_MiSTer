@@ -2,6 +2,9 @@
 //  Atari G1 for MiSTer
 //  g1_palette.sv -- 1280-entry palette RAM, IRGB-1555 to RGB888
 //
+//  The conversion is g1_pal_decode.sv: the Original colour (the game board,
+//  fitted to footage) or MAME's linear decode (curve_mame).
+//
 //  CPU $FE8000-$FE89FF: 1280 16-bit entries in MAME palette format IRGB_1555.
 //  Dual-port BRAM: port A is the 68000 (read/write, byte lanes), port B the
 //  video scan-out (read only). A CPU write and a video read of the same entry
@@ -16,6 +19,10 @@ module g1_palette
     import g1_pkg::*;
 (
     input  wire                  clk,
+
+    // OSD "Color Palette": 0 = Original (the board, fitted to footage), 1 = MAME's
+    // linear decode (g1_pal_decode.sv). Switches live; it only selects the table.
+    input  wire                  curve_mame,
 
     // ---- Port A: 68000 -----------------------------------------------------
     input  wire [PAL_AW-1:0]     cpu_addr,    // entry index 0..1279 (word address)
@@ -65,30 +72,31 @@ module g1_palette
     wire [15:0] entry = {vid_q_hi, vid_q_lo};
 
     //------------------------------------------------------------------------
-    // IRGB-1555 to RGB888
+    // IRGB-1555 to RGB888 (g1_pal_decode.sv)
     //------------------------------------------------------------------------
-    // MAME raw_to_rgb_converter::IRRRRRGGGGGBBBBB_decoder. The intensity bit
-    // is the shared LSB of three 6-bit channels, not a brightness flag:
-    //     r6 = { raw[14:10], i }   g6 = { raw[9:5], i }   b6 = { raw[4:0], i }
-    // pal6bit then expands 6 bits to 8 by repeating the top two: { x, x[5:4] }.
-    //------------------------------------------------------------------------
-    wire       i_bit = entry[15];
-    wire [5:0] r6    = {entry[14:10], i_bit};
-    wire [5:0] g6    = {entry[9:5],   i_bit};
-    wire [5:0] b6    = {entry[4:0],   i_bit};
+    wire [7:0] dec_r, dec_g, dec_b;
+
+    g1_pal_decode u_dec
+    (
+        .entry (entry),
+        .mame  (curve_mame),
+        .r     (dec_r),
+        .g     (dec_g),
+        .b     (dec_b)
+    );
 
     always_ff @(posedge clk) begin
-        vid_r   <= {r6, r6[5:4]};
-        vid_g   <= {g6, g6[5:4]};
-        vid_b   <= {b6, b6[5:4]};
+        vid_r   <= dec_r;
+        vid_g   <= dec_g;
+        vid_b   <= dec_b;
         vid_raw <= entry;
     end
 
 `ifdef SIMULATION
     // Reference values from MAME's decoder: $7C00 -> R = $FB (r6 = 62),
-    // $FC00 -> R = $FF (r6 = 63).
+    // $FC00 -> R = $FF (r6 = 63). sim/pal_curve_check.py checks every entry.
     initial begin
-        $display("g1_palette: IRGB1555 decode is combinational; "
+        $display("g1_palette: decode is g1_pal_decode; "
                  "verify $7C00 -> R=0xFB and $FC00 -> R=0xFF in the testbench");
     end
 `endif
